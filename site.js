@@ -7,7 +7,7 @@
 
   if (!reduced && window.gsap && window.ScrollTrigger && window.Lenis) {
     gsap.registerPlugin(ScrollTrigger);
-    var lenis = new Lenis({ autoRaf: false, lerp: 0.08 });
+    var lenis = new Lenis({ autoRaf: false, lerp: 0.09 });
     window.lenis = lenis;
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add(function (t) { lenis.raf(t * 1000); });
@@ -347,13 +347,10 @@
   });
 })();
 
-// Sketch A: the choreography. Everything here only moves what is already in the page.
+// The phone menu of the sketch: the home page and the inner pages both use it. It works with motion off as well.
 (function () {
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return [].slice.call((r || document).querySelectorAll(s)); };
-  var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
-
-  // menu and "you are here": these work with motion off as well
   var menuBtn = $('[data-menu]'), mnav = $('#mnav'), menuOn = false, menuT = 0;
   function menu(on) {
     if (!mnav || on === menuOn) return;
@@ -376,6 +373,15 @@
   document.addEventListener('lulu:closemenu', function () { menu(false); });
   document.addEventListener('pointerdown', function (e) { if (menuOn && !mnav.contains(e.target) && !menuBtn.contains(e.target)) menu(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menuOn) { menu(false); menuBtn.focus(); } });
+})();
+
+// Sketch A: the choreography. Everything here only moves what is already in the page.
+(function () {
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return [].slice.call((r || document).querySelectorAll(s)); };
+  var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
+
+  // "you are here": this works with motion off as well
   var NAMES = { top: 'הבית', about: 'על לולו', weeks: 'שבועות גידול', products: 'המוצרים', recipes: 'מתכונים', where: 'איפה קונים' };
   var here = $('[data-here]');
   function spy(id) {

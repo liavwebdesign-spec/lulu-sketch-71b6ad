@@ -7,7 +7,7 @@
 
   if (!reduced && window.gsap && window.ScrollTrigger && window.Lenis) {
     gsap.registerPlugin(ScrollTrigger);
-    var lenis = new Lenis({ autoRaf: false, lerp: 0.08 });
+    var lenis = new Lenis({ autoRaf: false, lerp: 0.09 });
     window.lenis = lenis;
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add(function (t) { lenis.raf(t * 1000); });
