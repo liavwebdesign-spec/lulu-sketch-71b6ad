@@ -233,7 +233,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .a11y-opt[aria-pressed="true"]{background:var(--green);color:#fff}
 .a11y-reset{background:none;text-decoration:underline}
 .a11y-state{display:flex;align-items:center;justify-content:center;min-height:44px;padding:4px 12px;border-top:1px solid #eee;font-weight:700}
-.a11y-line{position:fixed;/* qa-allow: physical */left:0;/* qa-allow: physical */right:0;top:0;height:4px;margin-top:-2px;background:var(--red);z-index:300;pointer-events:none}
+div.a11y-line{position:fixed;/* qa-allow: physical */left:0;/* qa-allow: physical */right:0;top:0;height:4px;margin-top:-2px;background:var(--red);z-index:300;pointer-events:none}
 html.a11y-contrast{--kraft:#000;--tex-kraft:none;--tex-wood:none}
 html.a11y-contrast body,html.a11y-contrast main section,html.a11y-contrast footer,html.a11y-contrast header{background:#000!important;color:#ff0!important}
 html.a11y-contrast h1,html.a11y-contrast h2,html.a11y-contrast h3,html.a11y-contrast p,html.a11y-contrast span,html.a11y-contrast a{color:#ff0!important}
@@ -508,6 +508,10 @@ html:not(.gsap-live) .ck-a{display:none}
   .mnav nav{display:grid;gap:2px}
   .mnav nav a{display:flex;align-items:center;min-height:48px;font-size:var(--fs-h3);font-weight:700;text-decoration:none}
   .mnav-here{font-size:var(--fs-meta)}
+  html{scroll-padding-bottom:calc(var(--mbar) + 16px)}
+  .wrap a,.wrap button,.wrap input,.ft a,.ft button{scroll-margin-top:96px}
+  .corn-q,.portal-q{padding-inline:88px}
+  .free{padding-top:max(var(--sec),96px)}
   .hh{--hh:clamp(96px,16vh,190px)}
   .hh-bust{inset-inline-end:10px;bottom:calc(var(--mbar) - 26px)}
   .hh-peck{inset-inline-start:6px;bottom:calc(var(--mbar) + 4px)}
@@ -520,11 +524,14 @@ html:not(.gsap-live) .ck-a{display:none}
   .gsap-live .slow-copy h2{font-size:clamp(26px,7vw,40px)}
   .slow-week{font-size:var(--fs-body)}
   .slow-panels{font-size:clamp(15px,3.9vw,18px);line-height:1.42}
-  .gsap-live .corn-flood{align-content:start;padding-top:clamp(56px,10svh,96px);padding-bottom:calc(var(--mbar) + 8px)}
+  .gsap-live .corn-flood{align-content:start;padding-top:96px;padding-bottom:calc(var(--mbar) + 8px)}
   .corn-copy{max-width:none}
   .ck{height:clamp(110px,27svh,260px);inset-inline-end:12px;bottom:calc(var(--mbar) + 4px)}
   .cob{display:none}
   .corn-stamp{inset-inline-end:auto;inset-inline-start:16px;bottom:calc(var(--mbar) + 16px);width:clamp(84px,24vw,140px)}
+  html:not(.gsap-live) .corn-flood{padding-bottom:calc(27svh + 32px)}
+  html:not(.gsap-live) .ck{bottom:16px}
+  html:not(.gsap-live) .corn-stamp{bottom:24px}
   .stamps{grid-template-columns:repeat(4,minmax(0,1fr))}
   .biz-wrap{grid-template-columns:minmax(0,1fr);justify-items:center;text-align:center;gap:var(--gap-m)}
   .biz-acts{justify-content:center}
@@ -550,4 +557,36 @@ html:not(.gsap-live) .ck-a{display:none}
   .prd:not(.prd-more) .prd-desc{display:none}
   .ft-top{grid-template-columns:minmax(0,1fr)}
   .ft-legal{flex-direction:column}
+}
+/* short phones: the ring gives up room so the words stay above the bottom bar */
+@media (max-width:1023px) and (max-height:700px){
+  .gsap-live .slow .stage{padding-top:8px;padding-bottom:calc(var(--mbar) + 6px)}
+  .ring{width:min(34svh,86vw)}
+  .ck{height:clamp(96px,22svh,160px)}
+}
+/* a phone on its side, or a page zoomed to 200%: everything sits side by side instead of on top of each other */
+@media (max-width:1023px) and (max-height:500px){
+  .hero{min-height:0}
+  .logo-slot{height:44svh}
+  .hero h1{font-size:clamp(22px,7svh,32px)}
+  .hero-sub{display:none}
+  .hero-in{gap:6px}
+  .hh{--hh:96px}
+  .gsap-live .slow .stage{grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding-top:8px;padding-bottom:calc(var(--mbar) + 6px);gap:16px}
+  .ring{width:min(70svh,100%)}
+  .slow-kick{font-size:20px}
+  .gsap-live .slow-copy h2{font-size:24px}
+  .slow-panels{font-size:15px;line-height:1.36}
+  .gsap-live .corn-flood{padding-top:12px;padding-inline-start:88px}
+  .gsap-live .corn-copy{gap:4px;max-width:62%}
+  .gsap-live .corn-copy h2{font-size:24px}
+  .gsap-live .corn-copy .lead{font-size:15px;line-height:1.36}
+  .gsap-live .corn-copy>p:last-child{display:none}
+  .corn-you{font-size:18px}
+  .ck{height:40svh}
+  .gsap-live .corn-stamp{inset-inline-start:auto;inset-inline-end:clamp(120px,22vw,190px);bottom:calc(var(--mbar) + 6px);width:64px}
+  .corn-q{top:12px}
+  .gsap-live .fast .stage{padding-block:8px calc(var(--mbar) + 8px);gap:8px}
+  .mq-item{font-size:44px}
+  .mq-hen{height:42px}
 }

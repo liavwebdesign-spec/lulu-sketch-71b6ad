@@ -193,7 +193,7 @@
   var list = TOGGLES.map(function (t) { return '<button type="button" class="a11y-opt" data-t="' + t[0] + '" aria-pressed="' + !!state[t[0]] + '">' + t[1] + '</button>'; }).join('');
   panel.innerHTML =
     '<div class="a11y-head"><strong>התאמות תצוגה</strong><button type="button" class="a11y-x" aria-label="סגירה">×</button></div>' +
-    '<div class="a11y-list"><div class="a11y-size"><span>גודל טקסט</span><div><button type="button" data-s="-1" aria-label="הקטנת טקסט">&minus;</button><output data-size>' + Math.round(SCALE[state.size || 0] * 100) + '%</output><button type="button" data-s="1" aria-label="הגדלת טקסט">+</button></div></div>' + list +
+    '<div class="a11y-list" data-lenis-prevent><div class="a11y-size"><span>גודל טקסט</span><div><button type="button" data-s="-1" aria-label="הקטנת טקסט">&minus;</button><output data-size>' + Math.round(SCALE[state.size || 0] * 100) + '%</output><button type="button" data-s="1" aria-label="הגדלת טקסט">+</button></div></div>' + list +
     '<button type="button" class="a11y-opt a11y-reset" data-reset>איפוס</button></div>' +
     '<a class="a11y-state" href="accessibility.html">להצהרת הנגישות</a>';
   document.body.appendChild(panel);
@@ -260,10 +260,10 @@
   var pts = $$('[data-list="where"] > li');
   var allBtn = $('[data-where-all]'), empty = $('[data-where-empty]'), count = $('[data-where-count]');
   function filterPts() {
-    var term = (q && q.value || '').trim();
+    var term = (q && q.value || '').trim().toLowerCase();
     var shown = 0, match = 0;
     pts.forEach(function (li) {
-      var ok = (region === 'all' || li.dataset.region === region) && (!term || li.dataset.name.indexOf(term) > -1);
+      var ok = (region === 'all' || li.dataset.region === region) && (!term || li.dataset.name.toLowerCase().indexOf(term) > -1);
       if (ok) match++;
       var vis = ok && (expanded || term || region !== 'all' || shown < 12);
       li.hidden = !vis;
@@ -313,11 +313,20 @@
     else if (!e.shiftKey && document.activeElement === end) { e.preventDefault(); first.focus(); }
   });
 
+  // Safari skips links and buttons on Tab, so the last stop is not always reached: whatever slips out comes back in
+  document.addEventListener('focusin', function (e) {
+    if (drawer && drawer.classList.contains('is-open') && !drawer.contains(e.target)) { var f = $('input', drawer); if (f) f.focus({ preventScroll: true }); }
+  });
+
   // the bottom bar steps down while a field has the focus, so it never covers what you are typing
   document.addEventListener('focusin', function (e) { document.documentElement.classList.toggle('field-on', !!e.target.matches && e.target.matches('input,textarea')); });
   document.addEventListener('focusout', function () { document.documentElement.classList.remove('field-on'); });
 
   $$('form[data-thanks]').forEach(function (form) {
+    form.addEventListener('input', function (e) {
+      var err = e.target.parentElement && e.target.parentElement.querySelector('.err');
+      if (err && !err.hidden) { err.hidden = true; e.target.removeAttribute('aria-invalid'); }
+    });
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       if (drawer && drawer.contains(form) && !drawer.classList.contains('is-open')) openDrawer(true);

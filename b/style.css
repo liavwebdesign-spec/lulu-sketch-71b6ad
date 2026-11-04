@@ -233,7 +233,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .a11y-opt[aria-pressed="true"]{background:var(--green);color:#fff}
 .a11y-reset{background:none;text-decoration:underline}
 .a11y-state{display:flex;align-items:center;justify-content:center;min-height:44px;padding:4px 12px;border-top:1px solid #eee;font-weight:700}
-.a11y-line{position:fixed;/* qa-allow: physical */left:0;/* qa-allow: physical */right:0;top:0;height:4px;margin-top:-2px;background:var(--red);z-index:300;pointer-events:none}
+div.a11y-line{position:fixed;/* qa-allow: physical */left:0;/* qa-allow: physical */right:0;top:0;height:4px;margin-top:-2px;background:var(--red);z-index:300;pointer-events:none}
 html.a11y-contrast{--kraft:#000;--tex-kraft:none;--tex-wood:none}
 html.a11y-contrast body,html.a11y-contrast main section,html.a11y-contrast footer,html.a11y-contrast header{background:#000!important;color:#ff0!important}
 html.a11y-contrast h1,html.a11y-contrast h2,html.a11y-contrast h3,html.a11y-contrast p,html.a11y-contrast span,html.a11y-contrast a{color:#ff0!important}
