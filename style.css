@@ -381,13 +381,15 @@ html:not(.gsap-live) .portal,html:not(.gsap-live) .corn-base{display:none}
 
 /* fast */
 .fast{--zz:var(--green);background:var(--green)}
-.fast .stage{display:grid;align-content:center;gap:clamp(16px,4vh,48px);padding-block:var(--sec);background:var(--stripes);isolation:isolate}
+/* max-content rows: a strip that hides its sideways overflow may otherwise collapse in a fixed-height stage and cut its letters */
+.fast .stage{display:grid;grid-auto-rows:max-content;align-content:center;gap:clamp(16px,4vh,48px);padding-block:var(--sec);background:var(--stripes);isolation:isolate}
+@media (min-width:1024px){.gsap-live .fast .stage{padding-block:clamp(12px,3vh,40px)}}
 .fast .stage::before{content:"";position:absolute;inset:0;background:var(--green);opacity:.72;z-index:-1}
 .mq{direction:ltr;overflow:hidden;width:100%}
 .mq-track{display:flex;align-items:center;width:max-content;animation:mq 11s linear infinite;gap:clamp(20px,3vw,56px)}
 .mq-b .mq-track{animation-direction:reverse;animation-duration:9s}
-.mq-item{direction:rtl;font-size:calc(clamp(56px,10vw,190px) * .97);line-height:1.25;color:#fff;white-space:nowrap}
-.mq-hen{height:clamp(52px,9vw,170px);width:auto;flex:none}
+.mq-item{direction:rtl;font-size:calc(clamp(56px,min(10vw,22svh),190px) * .97);line-height:1.25;color:#fff;white-space:nowrap}
+.mq-hen{height:clamp(52px,min(9vw,20svh),170px);width:auto;flex:none}
 @keyframes mq{to{transform:translateX(-50%)}}
 .fast-line{position:relative;z-index:1;text-align:center;padding-inline:var(--gutter);max-width:calc(var(--measure-head) + var(--gutter) * 2);margin-inline:auto;font-size:var(--fs-h2);line-height:var(--lh-h2);font-weight:700;color:#fff;letter-spacing:-.015em;text-wrap:balance}
 @media (min-width:1024px){.mq{/* qa-allow: physical */clip-path:inset(0 0 0 72px);mask-image:linear-gradient(to right,transparent 72px,#000 220px)}}
@@ -400,12 +402,12 @@ html:not(.gsap-live) .portal,html:not(.gsap-live) .corn-base{display:none}
 .slow-kick{font-size:clamp(30px,4.2vw,88px);color:#fff}
 .slow h2{color:var(--ink)}
 /* the number the whole chapter is about: on the same green stripes as the disc in the ring, and the prints under the words fill up with it */
-.slow-week{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:clamp(12px,1.4vw,24px);row-gap:clamp(2px,.6vh,8px);width:min(100%,clamp(320px,32vw,600px));padding:clamp(8px,1.4vh,18px) clamp(16px,1.8vw,32px);border-radius:20px;background:var(--stripes);color:#fff}
-.slow-week b{grid-row:1/span 2;min-width:1.25em;font-family:Milk,Fedra,sans-serif;font-weight:700;font-size:clamp(64px,min(7.6vw,15svh),148px);line-height:1;text-align:center}
+.slow-week{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:clamp(12px,1.4vw,24px);row-gap:clamp(2px,.6vh,8px);width:min(100%,clamp(320px,32vw,600px));color:var(--ink)}
+.slow-week b{grid-row:1/span 2;min-width:1.25em;font-family:Milk,Fedra,sans-serif;font-weight:700;font-size:clamp(64px,min(7.6vw,15svh),148px);line-height:1;color:#fff;text-align:start}
 .wk-l{align-self:end;font-size:clamp(20px,min(2.2vw,4.2svh),40px);font-weight:700;line-height:1.1}
-.wk-feet{align-self:start;display:block;width:100%;height:auto;max-height:44px;color:rgba(255,255,255,.3)}
+.wk-feet{align-self:start;display:block;width:100%;height:auto;max-height:44px;color:rgba(42,24,12,.24)}
 .wk-f{transition:color .24s var(--ease)}
-html:not(.gsap-live) .wk-f,.wk-f.on{color:var(--yellow)}
+html:not(.gsap-live) .wk-f,.wk-f.on{color:#fff}
 .slow-panels{display:grid;gap:12px}
 .gsap-live .slow-panels>p{grid-area:1/1}
 .ring{position:relative;width:min(86vh,100%);aspect-ratio:1;justify-self:center;color:#fff}
@@ -531,7 +533,7 @@ html:not(.gsap-live) .ck-a{display:none}
   .slow-kick{font-size:26px}
   .gsap-live .slow-copy{gap:6px}
   .gsap-live .slow-copy h2{font-size:clamp(26px,7vw,40px)}
-  .slow-week{width:100%;padding:6px 16px;border-radius:16px;column-gap:12px;row-gap:0}
+  .slow-week{width:100%;column-gap:12px;row-gap:0}
   .slow-week b{font-size:clamp(46px,13vw,72px)}
   .wk-l{font-size:clamp(19px,5.2vw,28px)}
   .wk-feet{max-height:26px}

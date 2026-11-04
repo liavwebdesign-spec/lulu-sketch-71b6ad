@@ -595,6 +595,9 @@ h1,h2{font-weight:300}
 .hero,.chap{padding-inline-start:calc(var(--rail) + var(--gutter))}
 .hero-cue{inset-inline-start:calc(50% + var(--rail) / 2)}
 .ft{margin-inline-start:var(--rail)}
+/* the walk came from the quiet sketch with its thin headings; here it speaks in the home page's weight */
+body h1,body h2,main section.chap h2{font-weight:700}
+@media (min-width:768px){.chap h2{font-size:var(--fs-h2)}}
 /* the big logo is on the first screen, so the one in the rail waits for it to leave */
 .rail-logo{transition:opacity .28s var(--ease)}
 .gsap-live:not(.is-past) .rail-logo{opacity:0;pointer-events:none}
