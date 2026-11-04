@@ -366,9 +366,10 @@
   $$('[data-mclose]').forEach(function (a) { a.addEventListener('click', function () { menu(false); }); });
   document.addEventListener('lulu:closemenu', function () { menu(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && mnav && !mnav.hidden) { menu(false); menuBtn.focus(); } });
-  var NAMES = { top: 'הבית', about: 'על לולו', products: 'המוצרים', recipes: 'מתכונים', where: 'איפה קונים' };
-  var here = $('[data-here]'), spied = '';
+  var NAMES = { top: 'הבית', about: 'על לולו', weeks: 'שבועות גידול', products: 'המוצרים', recipes: 'מתכונים', where: 'איפה קונים' };
+  var here = $('[data-here]'), spied = '', pinned = document.body.dataset.pinNav;
   function spy(id) {
+    id = pinned || id;
     if (id === spied) return;
     spied = id;
     $$('[data-nav]').forEach(function (a) {
@@ -539,7 +540,7 @@
     return { sec: sec, svg: $('svg', i), path: $('path', i) };
   });
   function drawCatalog() {
-    var W = document.documentElement.clientWidth, side = Math.max(8, parseFloat(getComputedStyle($('.wrap')).paddingLeft) * 0.45), wave = Math.min(side * 0.5, 16);
+    var W = document.documentElement.clientWidth, wrap = $('.wrap'), side = Math.max(8, (wrap ? parseFloat(getComputedStyle(wrap).paddingLeft) : W * 0.04) * 0.45), wave = Math.min(side * 0.5, 16);
     var L = side, R = W - side, x = X0(), toRight = false;
     lnSegs.forEach(function (s, n) {
       var H = s.sec.offsetHeight, pad = parseFloat(getComputedStyle(s.sec).paddingTop) || 64, to = toRight ? R : L, p;

@@ -347,23 +347,31 @@
   });
 })();
 
-// Sketch A: the choreography. Everything here only moves what is already in the page.
+// Sketch B: one walk. A single scroll-bound timeline runs the story, the layers move on the compositor, and nothing is measured while scrolling.
 (function () {
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return [].slice.call((r || document).querySelectorAll(s)); };
-  var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
+  var html = document.documentElement;
+  var live = html.classList.contains('gsap-live');
 
   // menu and "you are here": these work with motion off as well
   var menuBtn = $('[data-menu]'), mnav = $('#mnav');
-  function menu(on) { if (!mnav) return; mnav.hidden = !on; menuBtn.setAttribute('aria-expanded', String(on)); if (on) { var f = $('a', mnav); if (f) f.focus({ preventScroll: true }); } }
+  function menu(on) {
+    if (!mnav) return;
+    mnav.hidden = !on;
+    menuBtn.setAttribute('aria-expanded', String(on));
+    if (on) { var f = $('a', mnav); if (f) f.focus({ preventScroll: true }); }
+  }
   if (menuBtn) menuBtn.addEventListener('click', function () { menu(mnav.hidden); });
   $$('[data-mclose]').forEach(function (a) { a.addEventListener('click', function () { menu(false); }); });
   document.addEventListener('lulu:closemenu', function () { menu(false); });
-  document.addEventListener('pointerdown', function (e) { if (mnav && !mnav.hidden && !mnav.contains(e.target) && !menuBtn.contains(e.target)) menu(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && mnav && !mnav.hidden) { menu(false); menuBtn.focus(); } });
-  var NAMES = { top: 'הבית', about: 'על לולו', products: 'המוצרים', recipes: 'מתכונים', where: 'איפה קונים' };
-  var here = $('[data-here]');
+  var NAMES = { top: 'הבית', about: 'על לולו', weeks: 'שבועות גידול', products: 'המוצרים', recipes: 'מתכונים', where: 'איפה קונים' };
+  var here = $('[data-here]'), spied = '', pinned = document.body.dataset.pinNav;
   function spy(id) {
+    id = pinned || id;
+    if (id === spied) return;
+    spied = id;
     $$('[data-nav]').forEach(function (a) {
       var on = a.dataset.nav === id;
       a.classList.toggle('is-on', on);
@@ -372,283 +380,202 @@
     if (here) here.textContent = NAMES[id] || '';
   }
   if ('IntersectionObserver' in window) {
-    var sio = new IntersectionObserver(function (en) { en.forEach(function (x) { if (x.isIntersecting) spy(x.target.dataset.spy); }); }, { rootMargin: '-50% 0px -50% 0px' });
-    $$('[data-spy]').forEach(function (s) { sio.observe(s); });
+    var sio = new IntersectionObserver(function (en) { en.forEach(function (e) { if (e.isIntersecting) spy(e.target.dataset.spy); }); }, { rootMargin: '-50% 0px -50% 0px' });
+    $$(live ? '.catalog [data-spy]' : '[data-spy]').forEach(function (s) { sio.observe(s); });
   }
   spy('top');
 
-  if (!document.documentElement.classList.contains('gsap-live')) return;
-  ScrollTrigger.config({ ignoreMobileResize: true });
-  var mobile = function () { return innerWidth < 1024; };
-
-  function scene(sel, opts) {
-    var o = { trigger: sel, start: 'top top', end: 'bottom bottom', scrub: true };
-    for (var k in opts) o[k] = opts[k];
-    return gsap.timeline({ defaults: { ease: 'none', duration: 1 }, scrollTrigger: o });
+  // the preview beside the product list: follows the pointer or the keyboard, and the hen on the card pecks at each change
+  var view = $('.prd-view'), list = $('[data-list="products"]');
+  if (view && list) {
+    var vImg = $('.view-img', view), vName = $('.view-name', view), vDesc = $('.view-desc', view), vCard = $('.view-card', view), vHen = $('.view-hen', view), peckT;
+    var show = function (li) {
+      var im = $('.prd-img', li), a = $('.prd-link', li);
+      if (!im || vCard.getAttribute('href') === a.getAttribute('href')) return;
+      vImg.src = im.currentSrc || im.src;
+      vName.textContent = $('.prd-name', li).textContent;
+      var de = $('.prd-desc', li); vDesc.textContent = de ? de.textContent : '';
+      vCard.href = a.href;
+      vHen.classList.add('is-peck');
+      clearTimeout(peckT); peckT = setTimeout(function () { vHen.classList.remove('is-peck'); }, 170);
+    };
+    var pick = function (e) { var li = e.target.closest && e.target.closest('.prd:not(.prd-more)'); if (li) show(li); };
+    list.addEventListener('pointerover', pick);
+    list.addEventListener('focusin', pick);
+    document.addEventListener('lulu:layout', function () { var li = $('.prd:not(.prd-more):not([hidden])', list); if (li) show(li); });
   }
 
-  // the logo walks to its place in the rail
-  (function logoFly() {
-    var fly = $('.logo-fly'), slot = $('.logo-slot'), dock = $('.rail-logo');
-    var a = {}, b = {}, prog = 0;
-    function draw() {
-      var e = prog * prog * (3 - 2 * prog);
-      var s = 1 + (b.s - 1) * e;
-      var x = a.x + (b.x - a.x) * e;
-      var y = a.y + (b.y - a.y) * e - Math.abs(Math.sin(prog * Math.PI * 7)) * 10 * (1 - e);
-      fly.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) scale(' + s.toFixed(4) + ')';
-      Lulu.walk(fly, prog * 7, prog > 0.01 && prog < 0.99 ? 1 : 0);
-      dock.classList.toggle('is-docked', prog >= 1);
-    }
-    function measure() {
-      var r = slot.getBoundingClientRect();
-      a = { x: r.left, y: r.top + scrollY, w: r.width };
-      var t = (dock.querySelector('svg') || dock).getBoundingClientRect();
-      b = { x: t.left, y: t.top, s: t.width / r.width };
-      fly.style.width = r.width + 'px';
-      fly.style.height = r.height + 'px';
-      draw();
-    }
-    ScrollTrigger.create({ trigger: '.hero', start: 'top top', end: function () { return '+=' + innerHeight * 0.85; }, scrub: true,
-      onUpdate: function (s) { prog = s.progress; draw(); }, onRefresh: function (s) { prog = s.progress; measure(); } });
-    measure();
-    addEventListener('load', measure);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
-  })();
+  if (!live) return;
+  ScrollTrigger.config({ ignoreMobileResize: true });
 
-  // hens leave the hero in every direction
-  (function hero() {
-    var peck = $('.hh-peck .hen');
-    scene('.hero', { end: 'bottom top', onUpdate: function (s) { if (peck) Lulu.walk(peck, s.progress * 5); } })
-      .to('.hh-bust', { yPercent: 90 }, 0)
-      .to('.hh-hang', { yPercent: 110 }, 0)
-      .to('.hh-side', { yPercent: 130 }, 0)
-      .to('.hh-peck', { x: function () { return -innerWidth * 0.3; }, yPercent: 60 }, 0)
-      .to('.hero-cue', { autoAlpha: 0, duration: 0.2 }, 0);
-    // without the rail the logo walks straight up through the words, so they step aside first
-    gsap.matchMedia().add('(max-width:1023px)', function () {
-      // and they come back once the hero is off screen, so nothing is left switched off further down the page
-      var words = function (a) { gsap.set('.hero-in', { autoAlpha: a }); };
-      ScrollTrigger.create({
-        trigger: '.hero', start: 'top top', end: 'bottom top',
-        onUpdate: function (s) { words(Math.max(0, 1 - (s.scroll() - s.start) / (innerHeight * 0.12))); },
-        onLeave: function () { words(1); },
-        onLeaveBack: function () { words(1); }
-      });
-      return function () { gsap.set('.hero-in', { clearProps: 'opacity,visibility' }); };
+  var world = $('.world'), stage = $('.stage');
+  var STOPS = JSON.parse(world.dataset.stops);
+  function posAt(t) {
+    for (var i = 1; i < STOPS.length; i++) if (t <= STOPS[i][0]) { var a = STOPS[i - 1], b = STOPS[i]; return a[1] + ((t - a[0]) / (b[0] - a[0])) * (b[1] - a[1]); }
+    return STOPS[STOPS.length - 1][1];
+  }
+  var layers = $$('.layer').map(function (el) { return { el: el, k: +el.dataset.k || 1 }; });
+  var chick = $('.lu-chick .hen'), hen = $('.lu-hen .hen'), eggBox = $('.lu-egg'), clip = $('.line-clip'), weekEl = $('[data-week]');
+  var herd = $$('.herd').map(function (el) { return { el: el, run: +el.dataset.run, x0: posAt(+el.dataset.t), bird: $('.hen', el) }; });
+  // a piece exists only from the moment it starts to stand until it has left the screen, so the page never carries the whole village at once
+  var pops = $$('.pop[data-t]').map(function (el) { return { el: el, t: +el.dataset.t, p: parseFloat(el.style.insetInlineStart), on: null }; });
+  var lastX = -1, lastWeek = 0, lastPeck = null, lastClip = null, heroGone = false;
+
+  function frame(self) {
+    var t = self.progress * 100, x = posAt(t);
+    if (x !== lastX) {
+      for (var i = 0; i < layers.length; i++) layers[i].el.style.transform = 'translate3d(' + (x * layers[i].k).toFixed(2) + 'vw,0,0)';
+      if (t < 17) eggBox.style.rotate = (Math.sin(x / 2.4) * 9).toFixed(1) + 'deg';
+      if (t >= 16 && t < 37) Lulu.walk(chick, x / 3.6);
+      if (t >= 36) Lulu.walk(hen, x / 5.5, t > 57 && t < 68 ? 0 : 1);
+      for (var q = 0; q < pops.length; q++) {
+        var o = pops[q], show = t >= o.t && o.p - x > -60;
+        if (show !== o.on) { o.el.style.visibility = show ? '' : 'hidden'; o.on = show; }
+      }
+      for (var h = 0; h < herd.length; h++) {
+        var g = herd[h], d = x - g.x0;
+        if (d < -60 || d > 130 || !g.run) continue;
+        g.el.style.translate = (-g.run * d).toFixed(2) + 'vw 0';
+        if (g.bird) Lulu.walk(g.bird, (d + h * 3) / 4);
+      }
+      lastX = x;
+    }
+    var w = Math.min(16, 1 + Math.floor(t / 80 * 16));
+    if (w !== lastWeek) { weekEl.textContent = w; lastWeek = w; }
+    // she stops at the corn and pecks: the drawing swaps in time with the scroll
+    var peck = t > 58 && t < 67 && Math.floor(t * 1.5) % 2 === 0;
+    if (peck !== lastPeck) { hen.classList.toggle('is-peck', peck); lastPeck = peck; }
+    stage.classList.toggle('on-wood', t > 86.5);
+    html.classList.toggle('is-past', t > 9);
+    html.classList.toggle('is-done', t > 99.5);
+    // the last stretch: the line stops trailing behind her and runs on ahead, to the edge of the table
+    var c = t <= 91 ? 35 : t >= 99 ? 0 : 35 * (99 - t) / 8;
+    if (c !== lastClip) { clip.style.clipPath = 'inset(0 0 0 ' + c.toFixed(2) + 'vw)'; lastClip = c; }
+    spy(t < 9 ? 'top' : 'about');
+    // the first page has walked out of the frame: its links stop taking keyboard focus
+    if ((t > 11) !== heroGone) { heroGone = t > 11; $('.hero').inert = heroGone; }
+  }
+
+  var tl = gsap.timeline({
+    defaults: { ease: 'none' },
+    scrollTrigger: { trigger: '.journey', start: 'top top', end: 'bottom bottom', scrub: true, onUpdate: frame, onRefresh: frame }
+  });
+  tl.to({}, { duration: 0.001 }, 100);
+
+  // the book: each piece stands up on its hinge as she nears it
+  gsap.set('.pop[data-t]', { transformPerspective: 900, rotationX: 86 });
+  $$('.pop[data-t]').forEach(function (el) {
+    var t = +el.dataset.t;
+    tl.to(el, { rotationX: -6, duration: 2.1, ease: 'power2.out' }, t).to(el, { rotationX: 0, duration: 0.7, ease: 'power2.inOut' }, t + 2.1);
+  });
+
+  // the first page leaves, then one chapter at a time drifts through, a touch slower than the world
+  tl.to('.hero', { xPercent: 100, duration: 8.5, ease: 'power2.in' }, 2.5);
+  [['.chap-1', 12, 22.5], ['.chap-2', 24, 38.5], ['.chap-3', 40, 54.5], ['.chap-4', 56, 69.5], ['.chap-5', 71, 84.5], ['.chap-6', 88.5, 101]].forEach(function (c) {
+    var kids = $$(c[0] + ' > :not(.chap-art)');
+    tl.set(c[0], { opacity: 1 }, c[1]);
+    tl.fromTo(kids, { opacity: 0, xPercent: -5 }, { opacity: 1, xPercent: 0, duration: 1.8, stagger: 0.3, ease: 'power2.out' }, c[1]);
+    if (c[2] <= 100) tl.to(kids, { opacity: 0, xPercent: 5, duration: 1.3, stagger: 0.1, ease: 'power2.in' }, c[2] - 1.6);
+  });
+  gsap.set($$('.chap > :not(.chap-art)'), { opacity: 0 });
+  // keyboard: focus on the closing button brings its moment on screen
+  var closing = $('.chap-acts a');
+  if (closing) closing.addEventListener('focus', function () { var s = tl.scrollTrigger; lenis.scrollTo(s.start + (s.end - s.start) * 0.93, { immediate: true, force: true }); });
+
+  // egg to chick to hen. The shell breaks on the same zigzag as the pack's edge
+  tl.set('.egg-whole', { opacity: 0 }, 16.4).set('.shell', { opacity: 1 }, 16.4);
+  tl.to('.shell-t', { yPercent: -150, xPercent: 60, rotation: 30, opacity: 0, duration: 1.8, ease: 'power2.out' }, 16.4);
+  tl.to('.shell-b', { xPercent: 240, opacity: 0, duration: 4, ease: 'none' }, 16.8);
+  tl.fromTo('.lu-chick', { scale: 0.12, opacity: 0 }, { keyframes: [{ scale: 0.46, opacity: 1, duration: 1.1, ease: 'power2.out' }, { scale: 0.4, duration: 0.5, ease: 'power2.inOut' }] }, 16.6);
+  tl.to('.lu-chick', { scale: 0.56, duration: 17.6 }, 18.2);
+  tl.set('.lu-chick', { opacity: 0 }, 36.2);
+  tl.fromTo('.lu-hen', { scale: 0.46, opacity: 0 }, { keyframes: [{ scale: 0.64, opacity: 1, duration: 0.8, ease: 'power2.out' }, { scale: 0.6, duration: 0.4, ease: 'power2.inOut' }] }, 36.2);
+  tl.to('.lu-hen', { scale: 1, duration: 17 }, 37.4);
+
+  // the end of the walk: yellow wood wipes the kraft away, the farm stamp comes up like a sun
+  gsap.set('.wood', { xPercent: -106 });
+  tl.to('.wood', { xPercent: 0, duration: 5.2, ease: 'power2.inOut' }, 84);
+  gsap.set('.farm-sun', { yPercent: 112, rotation: -16, autoAlpha: 0 });
+  tl.set('.farm-sun', { autoAlpha: 1 }, 89);
+  tl.to('.farm-sun', { yPercent: 0, rotation: 0, duration: 7, ease: 'power2.out' }, 89);
+
+  // the white line: drawn once per size, revealed by a fixed edge at her feet, so scrolling never repaints it
+  var svg = $('.line-svg'), path = $('.line-p');
+  function vuNow(W, H) { return Math.min(Math.max(0.62, Math.min(W * 0.00085, 1.3)), H * 0.0014); }
+  function arm(from, to, seg) {
+    var dx = (to[0] - from[0]) / 6, dy = (to[1] - from[1]) / 6, len = Math.hypot(dx, dy), max = seg * 0.4, k = len > max && len ? max / len : 1;
+    return [dx * k, dy * k];
+  }
+  function spline(p) {
+    var d = 'M' + p[0][0].toFixed(1) + ' ' + p[0][1].toFixed(1);
+    for (var i = 0; i < p.length - 1; i++) {
+      var a = p[i - 1] || p[i], b = p[i], c = p[i + 1], e = p[i + 2] || c, seg = Math.hypot(c[0] - b[0], c[1] - b[1]);
+      var m = arm(a, c, seg), n = arm(b, e, seg);
+      d += 'C' + (b[0] + m[0]).toFixed(1) + ' ' + (b[1] + m[1]).toFixed(1) + ' ' + (c[0] - n[0]).toFixed(1) + ' ' + (c[1] - n[1]).toFixed(1) + ' ' + c[0].toFixed(1) + ' ' + c[1].toFixed(1);
+    }
+    return d;
+  }
+  // [screen widths/100 from the right, height above the ground in drawing units]
+  var ROUTE = [[0, 7], [40, 7], [65, 7], [85, 20], [105, 8], [125, 30], [145, 10], [170, 14], [198, 18], [205, 84], [210, 150], [205, 186], [200, 150], [205, 84], [214, 16], [245, 8], [270, 44], [295, 12], [320, 34], [345, 14], [364, 20], [370, 90], [375, 158], [370, 190], [365, 158], [370, 90], [380, 18], [425, 8], [450, 28], [470, 8], [488, 12], [499, 8]];
+  function drawLine() {
+    var W = innerWidth, H = stage.clientHeight, vw = W / 100, vu = vuNow(W, H), gr = $('.ground').offsetHeight, full = 520 * vw;
+    svg.setAttribute('width', full); svg.setAttribute('height', H);
+    svg.setAttribute('viewBox', '0 0 ' + full + ' ' + H);
+    var pts = ROUTE.map(function (p) { return [full - p[0] * vw, H - gr - p[1] * vu]; });
+    pts.push([full - 501 * vw, H - gr * 0.5], [full - 501 * vw, H + 8]);
+    path.setAttribute('d', spline(pts));
+  }
+  drawLine();
+
+  // the catalog: the same line carries on down the page in the margins and across the gaps between sections, and ends at the nest
+  var X0 = function () { return innerWidth * 0.14; };
+  var secs = $$('.catalog .sec, .ft');
+  var lnSegs = secs.map(function (sec) {
+    var c = document.createElement('div'), i = document.createElement('div');
+    c.className = 'ln'; c.setAttribute('aria-hidden', 'true'); i.className = 'ln-i';
+    i.innerHTML = '<svg><path/></svg>';
+    c.appendChild(i); sec.insertBefore(c, sec.firstChild);
+    gsap.fromTo(c, { yPercent: -100 }, { yPercent: 0, ease: 'none', scrollTrigger: { trigger: sec, start: 'top 78%', end: sec.classList.contains('ft') ? 'bottom bottom' : 'bottom 78%', scrub: true } });
+    gsap.fromTo(i, { yPercent: 100 }, { yPercent: 0, ease: 'none', scrollTrigger: { trigger: sec, start: 'top 78%', end: sec.classList.contains('ft') ? 'bottom bottom' : 'bottom 78%', scrub: true } });
+    return { sec: sec, svg: $('svg', i), path: $('path', i) };
+  });
+  function drawCatalog() {
+    var W = document.documentElement.clientWidth, wrap = $('.wrap'), side = Math.max(8, (wrap ? parseFloat(getComputedStyle(wrap).paddingLeft) : W * 0.04) * 0.45), wave = Math.min(side * 0.5, 16);
+    var L = side, R = W - side, x = X0(), toRight = false;
+    lnSegs.forEach(function (s, n) {
+      var H = s.sec.offsetHeight, pad = parseFloat(getComputedStyle(s.sec).paddingTop) || 64, to = toRight ? R : L, p;
+      var isFoot = s.sec.classList.contains('ft');
+      if (isFoot) {
+        var nest = $('.ft-nest', s.sec), r = nest.getBoundingClientRect(), o = s.sec.getBoundingClientRect();
+        var nx = r.left - o.left + r.width * 0.5, ny = r.top - o.top + r.height * 0.82, land = $('.ft-land', s.sec).offsetTop;
+        p = [[x, 0], [x + (x < W / 2 ? wave : -wave), land * 0.5], [x, land + 4], [(x + nx) / 2, land + (ny - land) * 1.1], [nx, ny]];
+      } else if (n === 0) {
+        p = [[x, -2], [(x + to) / 2, pad * 0.36], [to, pad * 0.9], [to + wave, H * 0.34], [to - wave * 0.4, H * 0.68], [to, H + 16]];
+      } else {
+        // the crossing: a slow S with one loop, in the space above the heading
+        var mid = (x + to) / 2, dir = to > x ? 1 : -1, ry = pad * 0.34;
+        p = [[x, -2], [x + dir * (W * 0.12), pad * 0.52], [mid - dir * W * 0.06, pad * 0.66], [mid + dir * W * 0.015, pad * 0.34], [mid, pad * 0.12], [mid - dir * W * 0.015, pad * 0.34], [mid + dir * W * 0.08, pad * 0.68], [to - dir * W * 0.1, pad * 0.72], [to, pad], [to + wave, H * 0.4], [to - wave * 0.4, H * 0.72], [to, H + 16]];
+      }
+      s.svg.setAttribute('width', W); s.svg.setAttribute('height', H + 16);
+      s.svg.setAttribute('viewBox', '0 0 ' + W + ' ' + (H + 16));
+      s.path.setAttribute('d', spline(p));
+      x = to; toRight = !toRight;
     });
-  })();
+  }
+  drawCatalog();
+  var built = innerWidth, rT;
+  addEventListener('resize', function () { clearTimeout(rT); rT = setTimeout(function () { if (innerWidth === built) return; built = innerWidth; drawLine(); drawCatalog(); }, 160); });
+  document.addEventListener('lulu:layout', drawCatalog);
+  addEventListener('load', function () { drawCatalog(); });
 
-  // the world slows down under your finger
-  (function fast() {
-    var anims = null;
-    var tl = scene('.fast', { start: 'top bottom', onUpdate: function (s) {
-      if (!anims) anims = $('.fast').getAnimations({ subtree: true });
-      var t = clamp((s.progress - 0.36) / 0.5, 0, 1);
-      var rate = 1 + (0.035 - 1) * (t * (2 - t));
-      for (var i = 0; i < anims.length; i++) anims[i].playbackRate = rate;
-    } });
-    gsap.set('.fast-2', { autoAlpha: 0, y: 24 });
-    tl.to('.fast-1', { scale: 0.86, autoAlpha: 0.5, duration: 0.2 }, 0.54)
-      .to('.fast-2', { autoAlpha: 1, y: 0, duration: 0.2 }, 0.56)
-      .to('.mq', { autoAlpha: 0.2, duration: 0.3 }, 0.5)
-      .to({}, { duration: 0.14 }, 0.86);
-  })();
-
-  // sixteen weeks around the ring: an egg, a chick, a hen
-  (function slow() {
-    var feet = $$('.rf'), week = $('[data-week]'), weekL = $('[data-week-l]'), walker = $('.ring-hen'), last = -1;
-    function setWeek(n) { week.textContent = n; weekL.textContent = n === 1 ? 'שבוע גידול' : 'שבועות גידול'; }
-    setWeek(1);
-    gsap.set('.rc-chick', { scale: 0, transformOrigin: '50% 100%' });
-    gsap.set('.rc-hen', { scale: 0.25, autoAlpha: 0, transformOrigin: '50% 100%' });
-    gsap.set('.slow-p2', { autoAlpha: 0, y: 16 });
-    var tl = scene('.slow', { onUpdate: function (s) {
-      var n = Math.min(16, Math.floor(s.progress * 17));
-      if (n !== last) {
-        last = n;
-        feet.forEach(function (f, i) { f.classList.toggle('on', i < n); });
-        setWeek(Math.max(1, n));
-      }
-      Lulu.walk(walker, s.progress * 22);
-    } });
-    tl.to('.ring-arm', { rotation: 337.5, duration: 0.94 }, 0)
-      .to('.rc-egg', { keyframes: { rotation: [0, -7, 7, -9, 9, -4, 0] }, duration: 0.16, transformOrigin: '50% 90%' }, 0.08)
-      .to('.rc-egg', { scale: 0, duration: 0.03, transformOrigin: '50% 90%' }, 0.24)
-      .to('.rc-chick', { keyframes: { scale: [0, 0.8, 0.72, 0.76] }, duration: 0.05 }, 0.25)
-      .to('.rc-chick', { scale: 1, duration: 0.2 }, 0.3)
-      .to('.rc-chick', { scale: 0, duration: 0.03 }, 0.52)
-      .to('.rc-hen', { autoAlpha: 1, scale: 0.5, duration: 0.03 }, 0.52)
-      .to('.rc-hen', { scale: 1, duration: 0.35 }, 0.55)
-      .to('.slow-p1', { autoAlpha: 0, y: -16, duration: 0.06 }, 0.54)
-      .to('.slow-p2', { autoAlpha: 1, y: 0, duration: 0.06 }, 0.6)
-      .fromTo('.ring-stamp', { autoAlpha: 0, scale: 2.1 }, { keyframes: [{ autoAlpha: 1, scale: 0.94, duration: 0.03 }, { scale: 1.05, duration: 0.015 }, { scale: 1, duration: 0.015 }] }, 0.9)
-      .to({}, { duration: 0.04 }, 0.96);
-  })();
-
-  // she pecks one grain and the whole screen turns to corn
-  (function corn() {
-    var stage = $('.corn-sec .stage'), flood = $('.corn-flood'), grain = $('.grain'), ckA = $('.ck-a'), ckB = $('.ck-b');
-    var st = { r: 0 }, cx = 0, cy = 0, R = 0, last = null;
-    function measure() {
-      var h = stage.clientHeight, w = stage.clientWidth;
-      var br = ckA.getBoundingClientRect(), sr = stage.getBoundingClientRect();
-      var u = br.width / 301.5;
-      cx = br.left - sr.left + 262 * u; cy = br.top - sr.top + 306 * u;
-      grain.style.left = cx + 'px'; grain.style.top = cy + 'px'; grain.style.translate = '-50% -50%';
-      R = Math.hypot(Math.max(cx, w - cx), Math.max(cy, h - cy)) + 8;
-      paint();
-    }
-    function paint() { flood.style.clipPath = 'circle(' + (st.r * R).toFixed(1) + 'px at ' + cx.toFixed(1) + 'px ' + cy.toFixed(1) + 'px)'; }
-    gsap.set('.corn-copy > *', { autoAlpha: 0, y: 24 });
-    gsap.set('.cob', { autoAlpha: 0, y: 60 });
-    gsap.set('.corn-stamp', { autoAlpha: 0 });
-    var tl = scene('.corn-sec', { onUpdate: function (s) {
-      var on = Math.sin(s.progress * 62) > 0.1;
-      if (on !== last) { last = on; ckA.classList.toggle('is-peck', on); ckB.classList.toggle('is-peck', on); }
-    }, onRefresh: measure });
-    tl.fromTo('.grain', { scale: 1 }, { scale: 2.6, duration: 0.14 }, 0.08)
-      .to('.corn-q', { autoAlpha: 0, duration: 0.06 }, 0.17)
-      .to(st, { r: 1, duration: 0.3, ease: 'power2.in', onUpdate: paint }, 0.22)
-      .to('.cob', { autoAlpha: 1, y: 0, stagger: 0.03, duration: 0.1 }, 0.5)
-      .to('.cob-1', { y: -60, duration: 0.3 }, 0.62).to('.cob-2', { y: -110, duration: 0.3 }, 0.62).to('.cob-3', { y: -30, duration: 0.3 }, 0.62)
-      .to('.corn-copy > *', { autoAlpha: 1, y: 0, stagger: 0.035, duration: 0.08 }, 0.5)
-      .fromTo('.corn-stamp', { autoAlpha: 0, scale: 2.1 }, { keyframes: [{ autoAlpha: 1, scale: 0.94, duration: 0.03 }, { scale: 1.05, duration: 0.015 }, { scale: 1, duration: 0.015 }] }, 0.8)
-      .to({}, { duration: 0.1 }, 0.9);
-    measure();
-    addEventListener('load', measure);
-  })();
-
-  // look her in the eye, and fall through
-  (function portal() {
-    var stage = $('.portal .stage'), pb = $('.pb'), cover = $('.portal-cover');
-    var st = { tail: 0 }, h = 0, R = 0;
-    // the green circle is the pupil itself: same size as she grows, then it keeps going until it is the next section
-    function paint() {
-      var s = gsap.getProperty(pb, 'scale');
-      var r = s > 1.01 ? (8.85 / 258.4) * h * s + st.tail * R : 0;
-      cover.style.clipPath = 'circle(' + r.toFixed(1) + 'px at 50% 50%)';
-    }
-    function measure() { h = parseFloat(getComputedStyle(pb).height); R = Math.hypot(stage.clientWidth, stage.clientHeight) / 2 + 10; paint(); }
-    gsap.set(pb, { xPercent: -60.7, yPercent: -39.5, transformOrigin: '60.7% 39.5%' });
-    var tl = scene('.portal', { onRefresh: measure, onToggle: function (s) { pb.classList.toggle('no-look', s.isActive); } });
-    tl.fromTo(pb, { y: function () { return innerHeight * 0.95; } }, { y: 0, duration: 0.3, ease: 'power2.out' }, 0)
-      .to('.portal-q', { yPercent: -260, duration: 0.1, ease: 'power2.in' }, 0.24)
-      .to('.pb .bu-sp', { autoAlpha: 0, duration: 0.08 }, 0.32)
-      .to(pb, { scale: 15, duration: 0.42, ease: 'power3.in', onUpdate: paint }, 0.38)
-      .to(st, { tail: 1, duration: 0.2, ease: 'power2.in', onUpdate: paint }, 0.74)
-      .to({}, { duration: 0.06 }, 0.94);
-    measure();
-  })();
-
-  // the coop: layers drift, the hens run and jump
-  (function free() {
-    gsap.to('.pano-far', { x: 90, ease: 'none', scrollTrigger: { trigger: '.pano', start: 'top bottom', end: 'bottom top', scrub: true } });
-    gsap.to('.pano-near', { x: 44, ease: 'none', scrollTrigger: { trigger: '.pano', start: 'top bottom', end: 'bottom top', scrub: true } });
-    var hens = $$('.runner'), W = innerWidth;
-    function run(p) {
-      hens.forEach(function (h, i) {
-        var q = p * 1.5 - i * 0.11;
-        // the translate property sits outside the flip, so flipped and plain hens run the same way
-        var x = W * 1.05 - q * W * 1.1;
-        var y = i % 2 ? -Math.abs(Math.sin(q * Math.PI * 7)) * 46 : -Math.abs(Math.sin(q * Math.PI * 16)) * 8;
-        h.style.translate = x.toFixed(1) + 'px ' + y.toFixed(1) + 'px';
-        Lulu.walk(h, q * 11);
-      });
-    }
-    ScrollTrigger.create({ trigger: '.pano', start: 'top bottom', end: 'bottom top', onUpdate: function (s) { run(s.progress); }, onRefresh: function (s) { W = innerWidth; run(s.progress); } });
-    run(0);
-    var io = new IntersectionObserver(function (en) {
-      en.forEach(function (x) { if (x.isIntersecting) { x.target.classList.add('is-in'); io.unobserve(x.target); } });
-    }, { threshold: 0.12 });
-    $$('.thud').forEach(function (t) { io.observe(t); });
-  })();
-
-  // lilach's line, as a line of footprints: it runs in the margin and crosses in the gaps between sections
-  (function trail() {
-    var box = $('.trail'), cat = $('.catalog');
-    if (!box) return;
-    var NS = 'http://www.w3.org/2000/svg';
-    var svg = document.createElementNS(NS, 'svg'), feet = [], walker = null, shown = 0, top0 = 0;
-    box.appendChild(svg);
-    var henTpl = $('.ring-hen');
-    if (henTpl) { walker = henTpl.cloneNode(true); walker.setAttribute('class', 'hen trail-hen'); walker.style.opacity = 0; box.appendChild(walker); }
-    function spline(pts, step) {
-      var out = [], carry = 0;
-      for (var i = 0; i < pts.length - 1; i++) {
-        var p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
-        var seg = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), n = Math.max(4, Math.round(seg / 6));
-        var px = p1[0], py = p1[1];
-        for (var j = 1; j <= n; j++) {
-          var t = j / n, t2 = t * t, t3 = t2 * t;
-          var x = 0.5 * (2 * p1[0] + (p2[0] - p0[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (3 * p1[0] - p0[0] - 3 * p2[0] + p3[0]) * t3);
-          var y = 0.5 * (2 * p1[1] + (p2[1] - p0[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (3 * p1[1] - p0[1] - 3 * p2[1] + p3[1]) * t3);
-          carry += Math.hypot(x - px, y - py);
-          if (carry >= step) { carry = 0; out.push([x, y, Math.atan2(y - py, x - px)]); }
-          px = x; py = y;
-        }
-      }
-      return out;
-    }
-    function build() {
-      var W = cat.clientWidth, H = cat.scrollHeight, phone = innerWidth < 768;
-      top0 = cat.getBoundingClientRect().top + scrollY;
-      var g = parseFloat(getComputedStyle($('.wrap')).paddingInlineStart) || 40;
-      var side = phone ? 8 : g / 2, L = side, Rr = W - side;
-      svg.setAttribute('width', W); svg.setAttribute('height', H);
-      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
-      var secs = $$('.sec', cat).map(function (s) { var r = s.getBoundingClientRect(); return [r.top + scrollY - top0, r.height]; });
-      var pts = [[Rr, 0]], cur = Rr;
-      secs.forEach(function (s, i) {
-        var end = s[0] + s[1], pad = phone ? 0 : parseFloat(getComputedStyle($('.sec')).paddingTop) * 0.5;
-        var m = 6;
-        for (var k = 1; k <= m; k++) { var yy = s[0] + (s[1] - pad) * (k / m); pts.push([cur + Math.sin(k * 1.7) * (phone ? 2 : side * 0.34), yy]); }
-        if (i < secs.length - 1 && !phone) {
-          var next = cur === Rr ? L : Rr;
-          pts.push([W * 0.72 * (cur === Rr ? 1 : 0.4), end - pad * 0.15], [W * 0.5, end + pad * 0.1], [W * 0.28 * (cur === Rr ? 1 : 2.5), end + pad * 0.3], [next, end + pad * 1.05]);
-          cur = next;
-        }
-      });
-      var list = spline(pts, phone ? 34 : 50);
-      svg.textContent = '';
-      var size = phone ? 12 : 22, frag = document.createDocumentFragment();
-      feet = list.map(function (p, i) {
-        var u = document.createElementNS(NS, 'use');
-        var nx = -Math.sin(p[2]) * size * 0.38 * (i % 2 ? 1 : -1), ny = Math.cos(p[2]) * size * 0.38 * (i % 2 ? 1 : -1);
-        var x = p[0] + nx, y = p[1] + ny;
-        u.setAttribute('href', '#foot'); u.setAttribute('width', size); u.setAttribute('height', size * 0.69);
-        u.setAttribute('x', x - size / 2); u.setAttribute('y', y - size * 0.35);
-        u.setAttribute('transform', 'rotate(' + ((p[2] * 180) / Math.PI - 90).toFixed(1) + ' ' + x.toFixed(1) + ' ' + y.toFixed(1) + ')');
-        u.setAttribute('class', 'tf');
-        frag.appendChild(u);
-        return { el: u, x: p[0], y: p[1], a: p[2] };
-      });
-      svg.appendChild(frag);
-      shown = 0;
-      advance();
-    }
-    function advance() {
-      var y = scrollY + innerHeight * 0.72 - top0;
-      var n = shown;
-      while (n < feet.length && feet[n].y < y) { feet[n].el.classList.add('on'); n++; }
-      while (n > 0 && feet[n - 1].y >= y) { n--; feet[n].el.classList.remove('on'); }
-      if (n !== shown || (walker && n === 0)) {
-        shown = n;
-        if (walker) {
-          var f = feet[Math.max(0, n - 1)];
-          walker.style.opacity = n > 0 && n < feet.length ? 1 : 0;
-          if (f) {
-            var w = walker.getBoundingClientRect().width, flip = Math.cos(f.a) < -0.2;
-            walker.style.transform = 'translate(' + (f.x - w / 2).toFixed(1) + 'px,' + (f.y - w * 1.3).toFixed(1) + 'px) scaleX(' + (flip ? -1 : 1) + ')';
-            Lulu.walk(walker, n / 2);
-          }
-        }
-      }
-    }
-    ScrollTrigger.create({ trigger: cat, start: 'top bottom', end: 'bottom top', onUpdate: advance, onRefresh: build });
-    var t = 0;
-    document.addEventListener('lulu:layout', function () { clearTimeout(t); t = setTimeout(build, 80); });
-    build();
-    addEventListener('load', build);
-  })();
+  // the dock steps aside while you read the catalog, and comes back when you scroll up. Over the footer it stays away
+  var lastY = 0, footIn = false, jEnd = function () { return tl.scrollTrigger.end; };
+  if ('IntersectionObserver' in window) new IntersectionObserver(function (en) { footIn = en[0].isIntersecting; html.classList.toggle('dock-away', footIn || html.classList.contains('dock-away')); }).observe($('.ft'));
+  function dockFrom(y) {
+    var dn = y > lastY + 2, up = y < lastY - 2;
+    if (y < jEnd() + 40 || (up && !footIn)) html.classList.remove('dock-away');
+    else if (dn) html.classList.add('dock-away');
+    lastY = y;
+  }
+  window.lenis.on('scroll', function (e) { dockFrom(e.scroll); });
 })();
