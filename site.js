@@ -354,13 +354,28 @@
   var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
 
   // menu and "you are here": these work with motion off as well
-  var menuBtn = $('[data-menu]'), mnav = $('#mnav');
-  function menu(on) { if (!mnav) return; mnav.hidden = !on; menuBtn.setAttribute('aria-expanded', String(on)); if (on) { var f = $('a', mnav); if (f) f.focus({ preventScroll: true }); } }
-  if (menuBtn) menuBtn.addEventListener('click', function () { menu(mnav.hidden); });
+  var menuBtn = $('[data-menu]'), mnav = $('#mnav'), menuOn = false, menuT = 0;
+  function menu(on) {
+    if (!mnav || on === menuOn) return;
+    menuOn = on;
+    clearTimeout(menuT);
+    menuBtn.setAttribute('aria-expanded', String(on));
+    if (on) {
+      mnav.hidden = false;
+      void mnav.offsetWidth; // the closed look has to be painted once, or the card has nothing to rise from
+      mnav.classList.add('is-open');
+      var f = $('a', mnav); if (f) f.focus({ preventScroll: true });
+      return;
+    }
+    mnav.classList.remove('is-open');
+    var still = matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('a11y-still');
+    if (still) mnav.hidden = true; else menuT = setTimeout(function () { mnav.hidden = true; }, 200);
+  }
+  if (menuBtn) menuBtn.addEventListener('click', function () { menu(!menuOn); });
   $$('[data-mclose]').forEach(function (a) { a.addEventListener('click', function () { menu(false); }); });
   document.addEventListener('lulu:closemenu', function () { menu(false); });
-  document.addEventListener('pointerdown', function (e) { if (mnav && !mnav.hidden && !mnav.contains(e.target) && !menuBtn.contains(e.target)) menu(false); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && mnav && !mnav.hidden) { menu(false); menuBtn.focus(); } });
+  document.addEventListener('pointerdown', function (e) { if (menuOn && !mnav.contains(e.target) && !menuBtn.contains(e.target)) menu(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menuOn) { menu(false); menuBtn.focus(); } });
   var NAMES = { top: 'הבית', about: 'על לולו', weeks: 'שבועות גידול', products: 'המוצרים', recipes: 'מתכונים', where: 'איפה קונים' };
   var here = $('[data-here]');
   function spy(id) {
