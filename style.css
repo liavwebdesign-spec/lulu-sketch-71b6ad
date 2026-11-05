@@ -186,6 +186,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .drawer-x{position:absolute;top:12px;inset-inline-end:12px;width:48px;height:48px;display:grid;place-items:center;border-radius:50%;background:#fff}
 .drawer-x .ico{width:16px;height:16px}
 .biz-form{display:grid;gap:var(--gap-s)}
+.biz-form input{/* qa-allow: physical. Phone and email fields are left-to-right by default; here they line up with the other Hebrew fields */text-align:right}
 .drawer-wa{display:inline-flex;align-items:center;gap:10px;min-height:48px;font-weight:700}
 
 /* footer pieces */

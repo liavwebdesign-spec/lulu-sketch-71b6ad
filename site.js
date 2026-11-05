@@ -259,6 +259,8 @@
   var region = 'all', expanded = false, q = $('#where-q');
   var pts = $$('[data-list="where"] > li');
   var allBtn = $('[data-where-all]'), empty = $('[data-where-empty]'), count = $('[data-where-count]');
+  // the stores page shows them all, under their regions; only the short list on the home page folds
+  if (!allBtn) expanded = true;
   function filterPts() {
     var term = (q && q.value || '').trim().toLowerCase();
     var shown = 0, match = 0;
@@ -271,6 +273,7 @@
     });
     if (count) count.textContent = match + (match === 1 ? ' נקודת מכירה' : ' נקודות מכירה');
     if (empty) empty.hidden = match !== 0;
+    $$('[data-where-group]').forEach(function (g) { g.hidden = !$('li:not([hidden])', g); });
     if (allBtn) {
       allBtn.hidden = !!term || region !== 'all' || match <= 12;
       allBtn.setAttribute('aria-expanded', String(expanded));

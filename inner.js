@@ -259,6 +259,8 @@
   var region = 'all', expanded = false, q = $('#where-q');
   var pts = $$('[data-list="where"] > li');
   var allBtn = $('[data-where-all]'), empty = $('[data-where-empty]'), count = $('[data-where-count]');
+  // the stores page shows them all, under their regions; only the short list on the home page folds
+  if (!allBtn) expanded = true;
   function filterPts() {
     var term = (q && q.value || '').trim().toLowerCase();
     var shown = 0, match = 0;
@@ -271,6 +273,7 @@
     });
     if (count) count.textContent = match + (match === 1 ? ' נקודת מכירה' : ' נקודות מכירה');
     if (empty) empty.hidden = match !== 0;
+    $$('[data-where-group]').forEach(function (g) { g.hidden = !$('li:not([hidden])', g); });
     if (allBtn) {
       allBtn.hidden = !!term || region !== 'all' || match <= 12;
       allBtn.setAttribute('aria-expanded', String(expanded));
@@ -543,5 +546,42 @@
       },
       onRefresh: function (st) { draw(st.progress); },
     });
+  });
+})();
+
+// The about page: her footprints fill in behind her as she walks the chain. The stores page: she pecks along with every letter you type.
+(function () {
+  var $$ = function (s, r) { return [].slice.call((r || document).querySelectorAll(s)); };
+  var root = document.documentElement;
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var still = function () { return reduced || root.classList.contains('a11y-still'); };
+
+  var hen = document.querySelector('.wh-hen'), field = document.getElementById('where-q');
+  if (hen && field) {
+    var t;
+    field.addEventListener('input', function () {
+      if (still()) return;
+      hen.classList.add('is-peck');
+      clearTimeout(t);
+      t = setTimeout(function () { hen.classList.remove('is-peck'); }, 130);
+    });
+  }
+
+  var spine = document.querySelector('.ch-spine');
+  if (!spine || !root.classList.contains('gsap-live')) return;
+  var feet = $$('.ch-foot', spine), walker = spine.querySelector('.ch-hen'), rest;
+  function draw(p) { feet.forEach(function (f, i) { f.classList.toggle('is-on', (i + 0.5) / feet.length < p); }); }
+  ScrollTrigger.create({
+    trigger: spine,
+    start: 'top 50%',
+    end: 'bottom 50%',
+    onUpdate: function (st) {
+      draw(st.progress);
+      if (still()) return;
+      walker.classList.add('walking');
+      clearTimeout(rest);
+      rest = setTimeout(function () { walker.classList.remove('walking'); }, 160);
+    },
+    onRefresh: function (st) { draw(st.progress); },
   });
 })();
