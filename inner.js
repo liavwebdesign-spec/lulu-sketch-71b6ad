@@ -1,7 +1,7 @@
 // Smooth scroll, anchor glide and one-shot reveal. Reduced motion gets none of it and the page simply works.
 (function () {
   var root = document.documentElement;
-  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches || root.classList.contains('a11y-still');
   var Lulu = (window.Lulu = window.Lulu || {});
   Lulu.reduced = reduced;
 
@@ -59,6 +59,14 @@
       });
     }, { threshold: 0.12 });
     items.forEach(function (el, i) { el.style.setProperty('--d', (i % 4) * 70 + 'ms'); io.observe(el); });
+    // Tab can land on a block before it has come in, and focus must never sit on something you can't see
+    document.addEventListener('focusin', function (e) {
+      for (var n = e.target; n && n.closest; n = n.parentElement && n.parentElement.closest('.reveal,.thud')) {
+        n = n.closest('.reveal,.thud');
+        if (!n) return;
+        if (!n.classList.contains('is-in')) { n.classList.add('is-in'); n.style.animation = 'none'; n.style.opacity = '1'; io.unobserve(n); }
+      }
+    });
   }
 })();
 
@@ -66,7 +74,7 @@
 // Nothing here runs in a loop at rest: eyes only on pointer moves, blinks on a slow timer, off-screen hens are skipped.
 (function () {
   var Lulu = (window.Lulu = window.Lulu || {});
-  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('a11y-still');
 
   Lulu.walk = function (el, phase, amp) {
     var s = Math.sin(phase * Math.PI * 2) * (amp === undefined ? 1 : amp);
@@ -135,8 +143,19 @@
 (function () {
   var root = document.documentElement;
   var KEY = 'lulu-a11y';
+  var BACK = 'lulu-a11y-back';
   var state = {};
   try { state = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { state = {}; }
+  // What the visitor already set in their system decides. Forced colours win over our contrast and invert modes,
+  // and a system preference is where a switch starts until they touch it.
+  var wants = function (q) { return !!(window.matchMedia && matchMedia(q).matches); };
+  var forced = wants('(forced-colors: active)');
+  function defaults(s) {
+    if (s.contrast === undefined && wants('(prefers-contrast: more)')) s.contrast = true;
+    if (s.still === undefined && wants('(prefers-reduced-motion: reduce)')) s.still = true;
+    return s;
+  }
+  defaults(state);
   var save = function () { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
 
   var SCALE = [1, 1.15, 1.3, 1.5];
@@ -152,16 +171,11 @@
     ['line', 'קו קריאה'],
   ];
   var line;
+  var loadedStill = false;
   function moveLine(e) { if (line) line.style.transform = 'translateY(' + e.clientY + 'px)'; }
   function apply() {
     root.style.setProperty('--a11y-scale', SCALE[state.size || 0]);
-    TOGGLES.forEach(function (t) { root.classList.toggle('a11y-' + t[0], !!state[t[0]]); });
-    if (document.getAnimations) {
-      document.getAnimations().forEach(function (a) {
-        if (!a.effect || a.effect.getComputedTiming().iterations !== Infinity) return;
-        if (state.still) a.pause(); else a.play();
-      });
-    }
+    TOGGLES.forEach(function (t) { root.classList.toggle('a11y-' + t[0], !!state[t[0]] && !(forced && (t[0] === 'contrast' || t[0] === 'invert'))); });
     if (state.line && !line) {
       line = document.createElement('div');
       line.className = 'a11y-line';
@@ -172,6 +186,7 @@
     }
   }
   apply();
+  loadedStill = !!state.still;
 
   var anchor = document.querySelector('.a11y-fab');
   if (!anchor) return;
@@ -190,7 +205,7 @@
   panel.setAttribute('role', 'dialog');
   panel.setAttribute('aria-label', 'התאמות תצוגה');
   panel.hidden = true;
-  var list = TOGGLES.map(function (t) { return '<button type="button" class="a11y-opt" data-t="' + t[0] + '" aria-pressed="' + !!state[t[0]] + '">' + t[1] + '</button>'; }).join('');
+  var list = TOGGLES.filter(function (t) { return !(forced && (t[0] === 'contrast' || t[0] === 'invert')); }).map(function (t) { return '<button type="button" class="a11y-opt" data-t="' + t[0] + '" aria-pressed="' + !!state[t[0]] + '">' + t[1] + '</button>'; }).join('');
   panel.innerHTML =
     '<div class="a11y-head"><strong>התאמות תצוגה</strong><button type="button" class="a11y-x" aria-label="סגירה">×</button></div>' +
     '<div class="a11y-list" data-lenis-prevent><div class="a11y-size"><span>גודל טקסט</span><div><button type="button" data-s="-1" aria-label="הקטנת טקסט">&minus;</button><output data-size>' + Math.round(SCALE[state.size || 0] * 100) + '%</output><button type="button" data-s="1" aria-label="הגדלת טקסט">+</button></div></div>' + list +
@@ -203,6 +218,34 @@
     btn.setAttribute('aria-expanded', String(v));
     if (v) panel.querySelector('.a11y-x').focus(); else btn.focus();
   }
+  // Scenes tied to the scroll are built once, on load. Stopping them for real means loading the page again,
+  // back at the same heading, with the panel open and focus on the button that was pressed.
+  function heads() { return [].slice.call(document.querySelectorAll('main h1,main h2,main h3')); }
+  function restart(mark) {
+    var at = 0;
+    heads().forEach(function (h, i) { if (h.offsetWidth && h.getBoundingClientRect().top < innerHeight * 0.5) at = i; });
+    try { sessionStorage.setItem(BACK, JSON.stringify({ at: at, mark: mark })); } catch (e) { return false; }
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
+    location.reload();
+    return true;
+  }
+  var back = null;
+  try { back = JSON.parse(sessionStorage.getItem(BACK) || 'null'); sessionStorage.removeItem(BACK); } catch (e) { back = null; }
+  if (back) {
+    panel.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    var pressed = panel.querySelector(back.mark);
+    if (pressed) pressed.focus({ preventScroll: true });
+    var land = function () {
+      var h = heads()[back.at];
+      if (!h) return;
+      var y = h.getBoundingClientRect().top + scrollY - 96;
+      if (window.lenis) window.lenis.scrollTo(y, { immediate: true, force: true }); else scrollTo(0, y);
+    };
+    land();
+    addEventListener('load', function () { land(); setTimeout(land, 400); });
+  }
+
   btn.addEventListener('click', function () { open(panel.hidden); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !panel.hidden) open(false); });
   document.addEventListener('pointerdown', function (e) { if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) { panel.hidden = true; btn.setAttribute('aria-expanded', 'false'); } });
@@ -216,11 +259,12 @@
       state[t.dataset.t] = !state[t.dataset.t];
       t.setAttribute('aria-pressed', String(state[t.dataset.t]));
     } else if (t.hasAttribute('data-reset')) {
-      state = {};
-      panel.querySelectorAll('[aria-pressed]').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+      state = defaults({});
+      panel.querySelectorAll('[aria-pressed]').forEach(function (b) { b.setAttribute('aria-pressed', String(!!state[b.dataset.t])); });
       panel.querySelector('[data-size]').textContent = '100%';
     } else return;
     apply(); save();
+    if (!!state.still !== loadedStill && !matchMedia('(prefers-reduced-motion: reduce)').matches && restart(t.dataset.t ? '[data-t="still"]' : '[data-reset]')) return;
     if (window.ScrollTrigger) ScrollTrigger.refresh();
   });
 })();
@@ -265,7 +309,7 @@
     var term = (q && q.value || '').trim().toLowerCase();
     var shown = 0, match = 0;
     pts.forEach(function (li) {
-      var ok = (region === 'all' || li.dataset.region === region) && (!term || li.dataset.name.toLowerCase().indexOf(term) > -1);
+      var ok = (region === 'all' || li.dataset.region === region) && (!term || (li.dataset.q || li.dataset.name).toLowerCase().indexOf(term) > -1);
       if (ok) match++;
       var vis = ok && (expanded || term || region !== 'all' || shown < 12);
       li.hidden = !vis;
@@ -280,6 +324,7 @@
       allBtn.textContent = expanded ? 'להציג פחות' : 'להציג את כל ' + pts.length + ' הנקודות';
     }
     refresh();
+    document.dispatchEvent(new CustomEvent('lulu:where'));
   }
   chips('where', function (v) { region = v; filterPts(); });
   if (q) q.addEventListener('input', filterPts);
@@ -386,7 +431,20 @@
   $$('[data-mclose]').forEach(function (a) { a.addEventListener('click', function () { menu(false); }); });
   document.addEventListener('lulu:closemenu', function () { menu(false); });
   document.addEventListener('pointerdown', function (e) { if (menuOn && !mnav.contains(e.target) && !menuBtn.contains(e.target)) menu(false); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && menuOn) { menu(false); menuBtn.focus(); } });
+  document.addEventListener('keydown', function (e) {
+    if (!menuOn) return;
+    if (e.key === 'Escape') { menu(false); menuBtn.focus(); return; }
+    if (e.key !== 'Tab') return;
+    // the page behind an open menu is out of reach, so the keys go round the menu and its button
+    var list = [menuBtn].concat($$('a[href],button', mnav)).filter(function (x) { return x.offsetWidth; });
+    var at = list.indexOf(document.activeElement);
+    e.preventDefault();
+    list[at < 0 ? 0 : (at + (e.shiftKey ? -1 : 1) + list.length) % list.length].focus();
+  });
+  // Safari can tab past a keydown, so focus that lands behind the menu comes back
+  document.addEventListener('focusin', function (e) {
+    if (menuOn && !mnav.contains(e.target) && !menuBtn.contains(e.target)) { var f = $('a', mnav); if (f) f.focus({ preventScroll: true }); }
+  });
 })();
 
 // The recipes: choosing on the list page, and the small helpers of a recipe page. Without a script the list simply shows everything.
@@ -402,10 +460,12 @@
     var leads = $$('.lead-rec'), count = $('[data-rcp-count]'), empty = $('[data-rcp-empty]');
     var params = new URLSearchParams(location.search);
     var state = { cat: params.get('cat') || 'all', time: 'all', level: 'all', product: '' };
-    if (!$('.pick[data-v="' + state.cat + '"]', fridge)) state.cat = 'all';
+    // compared and not put into a selector: an odd address must not stop the list
+    if (!$$('.pick', fridge).some(function (b) { return b.dataset.v === state.cat; })) state.cat = 'all';
     // coming from the products page: only the recipes of that one product, until you choose anything else
     var names = JSON.parse($('[data-list="rcp"]').dataset.names), clearBtn = $('[data-rcp-clear]');
-    if (names[params.get('product')] && items.some(function (li) { return li.dataset.product === params.get('product'); })) state.product = params.get('product');
+    // "item" and not "product": on WordPress "product" is a public address word of WooCommerce, and it takes over the page
+    if (names[params.get('item')] && items.some(function (li) { return li.dataset.product === params.get('item'); })) state.product = params.get('item');
     if (params.get('q')) q.value = params.get('q');
     var norm = function (s) { return s.toLowerCase().replace(/["'׳״]/g, '').trim(); };
     var timeOk = function (m) { return state.time === 'all' || (state.time === 'long' ? m > 60 : m <= +state.time); };
@@ -443,7 +503,7 @@
       clearBtn.hidden = !state.product;
       // the address keeps the choice, so going back from a recipe returns to the same shelf
       var url = new URLSearchParams();
-      if (state.product) url.set('product', state.product);
+      if (state.product) url.set('item', state.product);
       if (state.cat !== 'all') url.set('cat', state.cat);
       if (q.value.trim()) url.set('q', q.value.trim());
       history.replaceState(null, '', location.pathname + (url.toString() ? '?' + url : ''));
@@ -476,6 +536,10 @@
       pressed(fridge, 'all');
       $$('[data-rcp]').forEach(function (box) { pressed(box, 'all'); });
       placeHen(true); centerPick(); apply(); q.focus();
+    });
+    // a level no recipe has is not offered; a recipe of that level from the panel brings it back
+    $$('[data-rcp="level"] .chip').forEach(function (c) {
+      c.hidden = c.dataset.v !== 'all' && !items.some(function (li) { return li.dataset.level === c.dataset.v; });
     });
     pressed(fridge, state.cat);
     apply();
@@ -576,6 +640,126 @@
       clearTimeout(t);
       t = setTimeout(function () { hen.classList.remove('is-peck'); }, 130);
     });
+  }
+
+  // The map opens on request only: nobody downloads it, or talks to the map's servers, without asking.
+  var mapBtn = document.querySelector('[data-map-open]'), mapBox = document.getElementById('wh-map');
+  var cards = $$('.ptc[data-lat]');
+  var map, pins = [], youPin;
+  function load(attr, tag, done) {
+    var el = document.createElement(tag);
+    if (tag === 'link') { el.rel = 'stylesheet'; el.href = attr; } else { el.src = attr; }
+    el.onload = done;
+    document.head.appendChild(el);
+  }
+  function syncPins(fit) {
+    if (!map) return;
+    var on = [];
+    pins.forEach(function (p) {
+      var show = !p.card.hidden;
+      if (show && !map.hasLayer(p.marker)) p.marker.addTo(map);
+      if (!show && map.hasLayer(p.marker)) map.removeLayer(p.marker);
+      if (show) on.push(p.marker.getLatLng());
+    });
+    if (fit !== false && on.length) map.fitBounds(L.latLngBounds(on), { padding: [32, 32], maxZoom: 15, animate: !still() });
+  }
+  function popup(card) {
+    var box = document.createElement('div');
+    box.className = 'ptc-pop';
+    box.appendChild(card.querySelector('.ptc-head').cloneNode(true));
+    box.appendChild(card.querySelector('.ptc-acts').cloneNode(true));
+    return box;
+  }
+  function makeMap() {
+    var anim = !still();
+    map = L.map(mapBox, { zoomControl: false, scrollWheelZoom: false, dragging: !L.Browser.mobile, zoomAnimation: anim, fadeAnimation: anim, markerZoomAnimation: anim, attributionControl: true, maxBounds: [[28.5, 33.5], [34.2, 36.6]], maxBoundsViscosity: 0.8, minZoom: 6 });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' }).addTo(map);
+    map.attributionControl.setPrefix(false);
+    L.control.zoom({ zoomInTitle: 'הגדלת המפה', zoomOutTitle: 'הקטנת המפה' }).addTo(map);
+    map.on('popupopen', function (e) { var x = e.popup.getElement().querySelector('.leaflet-popup-close-button'); if (x) x.setAttribute('aria-label', 'סגירה'); });
+    var icon = L.divIcon({ className: 'wh-pin', html: '<svg viewBox="0 0 300 300" aria-hidden="true" focusable="false"><use href="#i-pin"/></svg>', iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
+    pins = cards.map(function (c) {
+      var m = L.marker([+c.dataset.lat, +c.dataset.lng], { icon: icon, title: c.dataset.name, alt: c.dataset.name });
+      m.bindPopup(function () { return popup(c); }, { minWidth: 240, maxWidth: 320 });
+      return { card: c, marker: m };
+    });
+    syncPins();
+  }
+  if (mapBtn && mapBox && cards.length) {
+    var opening = false;
+    mapBtn.addEventListener('click', function () {
+      var open = mapBox.hidden;
+      mapBox.hidden = !open;
+      mapBtn.setAttribute('aria-expanded', String(open));
+      mapBtn.textContent = open ? 'להסתיר את המפה' : 'לראות על המפה';
+      if (!open) return;
+      if (map) { map.invalidateSize(); syncPins(); return; }
+      if (opening) return;
+      opening = true;
+      var left = 2, go = function () { if (--left === 0) makeMap(); };
+      load(mapBtn.dataset.css, 'link', go);
+      load(mapBtn.dataset.js, 'script', go);
+    });
+    document.addEventListener('lulu:where', function () { syncPins(); });
+  } else if (mapBtn) {
+    mapBtn.hidden = true;
+  }
+
+  // The nearest stores, measured here in the browser. The location goes nowhere.
+  var nearBtn = document.querySelector('[data-near]'), list = document.querySelector('.wh-list'), nearCount = document.querySelector('[data-where-count]');
+  function km(a, b, c, d) {
+    var r = Math.PI / 180, x = Math.sin((c - a) * r / 2), y = Math.sin((d - b) * r / 2);
+    return 12742 * Math.asin(Math.sqrt(x * x + Math.cos(a * r) * Math.cos(c * r) * y * y));
+  }
+  function dropNear() {
+    var old = document.querySelector('.wh-near');
+    if (old) old.remove();
+  }
+  function showNear(lat, lng) {
+    dropNear();
+    var near = cards.map(function (c) { return { c: c, d: km(lat, lng, +c.dataset.lat, +c.dataset.lng) }; }).sort(function (a, b) { return a.d - b.d; }).slice(0, 6);
+    var sec = document.createElement('section');
+    sec.className = 'wh-group wh-near';
+    sec.setAttribute('aria-labelledby', 'wh-near');
+    var h = document.createElement('h2');
+    h.id = 'wh-near';
+    h.tabIndex = -1;
+    h.textContent = 'הכי קרוב אליכם';
+    var ul = document.createElement('ul');
+    ul.className = 'where-list';
+    near.forEach(function (n) {
+      var li = n.c.cloneNode(true);
+      li.hidden = false;
+      var p = document.createElement('p');
+      p.className = 'ptc-dist';
+      p.textContent = n.d < 1 ? 'פחות מקילומטר מכם' : 'כ-' + Math.round(n.d) + ' ק"מ מכם';
+      li.querySelector('.ptc-head').appendChild(p);
+      ul.appendChild(li);
+    });
+    sec.appendChild(h);
+    sec.appendChild(ul);
+    list.insertBefore(sec, list.firstChild);
+    h.focus();
+    if (map) {
+      if (youPin) map.removeLayer(youPin);
+      youPin = L.circleMarker([lat, lng], { radius: 9, color: '#fff', weight: 3, fillColor: '#d75632', fillOpacity: 1 }).addTo(map);
+      map.fitBounds(L.latLngBounds(near.map(function (n) { return [+n.c.dataset.lat, +n.c.dataset.lng]; }).concat([[lat, lng]])), { padding: [32, 32], maxZoom: 14, animate: !still() });
+    }
+  }
+  if (nearBtn && list && cards.length && navigator.geolocation) {
+    nearBtn.addEventListener('click', function () {
+      nearBtn.disabled = true;
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        nearBtn.disabled = false;
+        showNear(pos.coords.latitude, pos.coords.longitude);
+      }, function () {
+        nearBtn.disabled = false;
+        if (nearCount) nearCount.textContent = 'לא קיבלנו את המיקום שלכם. אפשר לחפש לפי יישוב.';
+      }, { timeout: 10000, maximumAge: 300000 });
+    });
+    document.addEventListener('lulu:where', dropNear);
+  } else if (nearBtn) {
+    nearBtn.hidden = true;
   }
 
   var spine = document.querySelector('.ch-spine');
