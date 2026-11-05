@@ -345,7 +345,18 @@
       });
       if (msg) msg.textContent = firstBad ? 'יש שדות שצריך להשלים. עברנו לראשון מהם.' : '';
       if (firstBad) { firstBad.focus(); return; }
-      location.href = form.dataset.thanks;
+      // the static sketch has nowhere to send to; on the real site the form carries the address of its endpoint
+      if (!form.dataset.endpoint) { location.href = form.dataset.thanks; return; }
+      var send = $('[type=submit]', form), body = {};
+      new FormData(form).forEach(function (v, k) { body[k] = v; });
+      send.disabled = true;
+      fetch(form.dataset.endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function (r) {
+        if (!r.ok) throw new Error('not saved');
+        location.href = form.dataset.thanks;
+      }).catch(function () {
+        send.disabled = false;
+        if (msg) { msg.classList.remove('vh'); msg.textContent = 'משהו לא עבר. נסו שוב, או כתבו לנו בוואטסאפ.'; }
+      });
     });
   });
 })();

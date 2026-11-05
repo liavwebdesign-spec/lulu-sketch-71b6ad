@@ -345,7 +345,6 @@ html:not(.js) .wh-tools,html:not(.js) .where-count{display:none}
   .ch-art{justify-items:start;width:88px}
   .ab-contact{flex-direction:column;align-items:center}
   .bz-contact{align-items:flex-start}
-  .wh-group h2{text-align:center}
   .wh-tools .chips{flex-wrap:wrap;justify-content:center;overflow:visible;margin-inline:0;padding-inline:0}
   .ab-hen{inset-inline-start:46%}
 }
