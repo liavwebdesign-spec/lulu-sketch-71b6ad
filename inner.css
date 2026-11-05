@@ -107,6 +107,85 @@ html:not(.js) .rcp-tools,html:not(.js) .pick-hen{display:none}
 .rp-next .rec-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,clamp(220px,19vw,400px)),1fr))}
 .rp-next .rec-grid .rec{max-width:560px}
 
+.rp-prod-name a{text-underline-offset:4px}
+.rcp-clear{justify-self:center}
+.rcp-clear[hidden]{display:none}
+
+/* the products: a question of which shelf, and four shelves, each with its own colour and its own hen on the edge */
+.prc-top{position:relative;display:grid;gap:var(--gap-s);justify-items:center;padding:var(--sec) var(--gutter) calc(var(--sec) + 48px)}
+.prc-head{display:grid;gap:var(--gap-s);justify-items:center;text-align:center;max-width:var(--measure-head);margin-bottom:var(--gap-s)}
+.prc-head h1{font-size:var(--fs-h1-hero);color:#fff}
+.prc-head .lead{max-width:var(--measure);text-wrap:balance}
+.prc-count{margin:0}
+html:not(.js) .prc-chips,html:not(.js) .prc-count{display:none}
+.prc-bust{position:absolute;inset-inline-end:clamp(16px,5vw,96px);bottom:0;height:clamp(96px,11vw,190px);width:auto}
+
+.shelf{position:relative;display:grid;gap:var(--gap-m);padding:var(--sec) var(--gutter) var(--sec-loose)}
+.shelf-chicken{--zz:var(--green);background:var(--green);color:#fff}
+.shelf-pargit{--zz:var(--yellow) var(--tex-wood);background:var(--yellow) var(--tex-wood);color:var(--ink-2)}
+.shelf-ground{--zz:var(--pink);background:var(--pink);color:var(--ink-2)}
+.shelf-offal{--zz:var(--kraft) var(--tex-kraft);background:var(--kraft) var(--tex-kraft);padding-bottom:var(--sec)}
+.shelf-offal h2{color:#fff}
+.shelf-head{display:grid;gap:8px;justify-items:center;text-align:center}
+.shelf-head h2{font-size:calc(var(--fs-h2) * 1.25)}
+
+/* the walk: a hen on the zigzag, and her prints in the colour of the ground she crosses */
+.shelf-walk{position:absolute;inset-inline:0;top:-15px;height:0;z-index:3;pointer-events:none;color:rgba(42,24,12,.42)}
+.shelf-chicken .shelf-walk{color:rgba(255,255,255,.72)}
+.shelf-pargit .shelf-walk{color:rgba(255,255,255,.62)}
+.walk-hen{position:absolute;bottom:-2px;inset-inline-start:0;height:clamp(64px,7.4vw,130px);width:auto}
+/* the ground under this one is yellow, so what is yellow on her takes the other brand colours */
+.shelf-ground .walk-hen{--leg:var(--green);--comb:var(--red);--beak:var(--red)}
+.walk-foot{position:absolute;bottom:6px;width:clamp(14px,1.3vw,20px);height:auto;rotate:-90deg;opacity:0;transition:opacity .3s var(--ease)}
+.walk-foot:nth-of-type(even){bottom:20px}
+.walk-foot.is-on{opacity:1}
+html:not(.gsap-live) .walk-hen{inset-inline-start:8%}
+
+.prc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--gap-m)}
+.prc-grid.is-3,.prc-grid.is-6{grid-template-columns:repeat(3,minmax(0,1fr))}
+.prc-grid.is-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.prc{scroll-margin-top:32px}
+.prc-card{position:relative;z-index:1;display:flex;flex-direction:column;height:100%;background:#fff;color:var(--ink);border-radius:24px;overflow:hidden;box-shadow:0 2px 0 rgba(60,36,20,.08);transition:transform .4s var(--ease),box-shadow .3s var(--ease)}
+.prc-card :focus-visible{outline-color:var(--ink)}
+.prc:target .prc-card{box-shadow:0 0 0 4px var(--yellow)}
+.prc-pic{position:relative;display:block;aspect-ratio:4/3;padding:var(--gap-s) var(--gap-s) 0}
+.prc-img{width:100%;height:100%;object-fit:contain;transition:rotate .4s var(--ease),scale .4s var(--ease)}
+.prc-tag{position:absolute;top:12px;inset-inline-start:12px;padding:4px 12px;border-radius:999px;background:var(--green);color:#fff;font-size:var(--fs-meta);font-weight:700;line-height:1.3}
+.prc-txt{display:flex;flex-direction:column;gap:8px;padding:var(--pad-card);padding-top:var(--gap-s);flex:1}
+.prc-name{font-size:var(--fs-h3)}
+.prc-desc{font-size:var(--fs-meta);line-height:1.5;color:var(--ink-2)}
+.prc-acts{display:flex;flex-wrap:wrap-reverse;align-items:center;gap:4px 16px;margin-top:auto;padding-top:8px}
+.prc .prd-hen{width:min(30%,150px)}
+.is-2 .prd-hen{width:min(16%,120px)}
+/* she comes up on hover: never in front of the shelf's centred title */
+.is-2 .prc:first-child .prd-hen,.prc-grid:not(.is-2,.is-3,.is-6) .prc:nth-child(2) .prd-hen{inset-inline-end:auto;inset-inline-start:8%}
+.is-3 .prc:nth-child(2) .prd-hen,.is-6 .prc:nth-child(2) .prd-hen{display:none}
+.prc-rec{display:inline-flex;align-items:center;min-height:48px;font-weight:700;color:var(--green);text-underline-offset:4px;transition:opacity .15s var(--ease)}
+/* two products: they get the width, the picture beside the words */
+.is-2 .prc-card{display:grid;grid-template-columns:minmax(0,46%) minmax(0,1fr)}
+.is-2 .prc-pic{height:100%;aspect-ratio:auto;min-height:clamp(200px,17vw,320px);padding:var(--gap-s)}
+.is-2 .prc-img{position:absolute;inset:var(--gap-s);width:calc(100% - var(--gap-s) * 2);height:calc(100% - var(--gap-s) * 2)}
+.is-2 .prc-txt{padding-top:var(--pad-card)}
+
+.prc-close{display:grid;gap:var(--gap-m);padding:0 var(--gutter) var(--sec);background:var(--kraft) var(--tex-kraft)}
+.prc-end{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--gap-m)}
+.prc-tile{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:var(--pad-card);border-radius:24px;color:var(--ink);text-decoration:none;font-size:var(--fs-lead);line-height:var(--lh-lead);transition:transform .4s var(--ease),background-color .18s var(--ease)}
+.prc-tile-t{font-size:var(--fs-h2);font-weight:700;line-height:var(--lh-h2);letter-spacing:-.015em}
+.prc-tile-shop{background:var(--yellow)}
+.prc-tile-where{background:#fff}
+.prc-tile .prd-go{color:var(--ink);font-size:var(--fs-body)}
+.prc-small{font-size:var(--fs-meta);text-align:center}
+@media (hover:hover) and (pointer:fine){
+  .prc-card:hover{transform:translateY(-6px);box-shadow:0 14px 28px rgba(60,36,20,.22)}
+  .prc-card:hover .prc-img{rotate:-2deg;scale:1.03}
+  .prc-rec:hover{opacity:.72}
+  .prc-tile:hover{transform:translateY(-4px)}
+  .prc-tile-shop:hover{background:#ffc261}
+  .prc-tile:hover .ico-arrow{translate:-4px -4px}
+}
+html.a11y-contrast .prc-card,html.a11y-contrast .prc-tile,html.a11y-contrast .shelf{background:#000!important;color:#ff0!important;box-shadow:inset 0 0 0 2px #ff0!important}
+html.a11y-still .walk-hen{transition:none}
+
 html.a11y-contrast .pick,html.a11y-contrast .lead-link,html.a11y-contrast .rp-ing,html.a11y-contrast .rp-prod,html.a11y-contrast .rp-note,html.a11y-contrast .st-n{background:#000!important;color:#ff0!important;box-shadow:inset 0 0 0 2px #ff0!important}
 
 /* the accessibility button sits in the left margin here: running text stops before it */
@@ -116,6 +195,13 @@ html.a11y-contrast .pick,html.a11y-contrast .lead-link,html.a11y-contrast .rp-in
   .pick-pic{aspect-ratio:4/3}
 }
 @media (max-width:1023px){
+  .prc-top{padding-top:96px}
+  .prc-grid,.prc-grid.is-6{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .prc-grid.is-3,.prc-grid.is-2{grid-template-columns:minmax(0,1fr)}
+  .is-3 .prc-card{display:grid;grid-template-columns:minmax(0,46%) minmax(0,1fr)}
+  .is-3 .prc-pic{height:100%;aspect-ratio:auto;min-height:200px;padding:var(--gap-s)}
+  .is-3 .prc-img{position:absolute;inset:var(--gap-s);width:calc(100% - var(--gap-s) * 2);height:calc(100% - var(--gap-s) * 2)}
+  .is-3 .prc-txt{padding-top:var(--pad-card)}
   .rcp-top{padding-top:96px}
   .rp{padding-top:88px}
   .fridge{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-inline:calc(var(--gutter) * -1);padding-inline:var(--gutter);scroll-snap-type:x proximity}
@@ -132,6 +218,15 @@ html.a11y-contrast .pick,html.a11y-contrast .lead-link,html.a11y-contrast .rp-in
   .rp-prod-pic{max-width:280px}
 }
 @media (max-width:767px){
+  .prc-top{padding-bottom:calc(var(--sec) + 24px)}
+  .prc-bust{display:none}
+  .prc-chips{justify-self:stretch}
+  .prc-grid,.prc-grid.is-6{gap:12px}
+  .prc-card{border-radius:18px}
+  .prc-txt,.is-2 .prc-txt,.is-3 .prc-txt{padding:12px}
+  .prc-name{font-size:var(--fs-body);line-height:1.25}
+  .prc-buy{padding-inline:16px;flex:1 1 auto;border-radius:12px}
+  .prc-end{grid-template-columns:minmax(0,1fr)}
   .rcp-filters{display:grid;width:100%;gap:8px}
   .rcp-filter{display:grid;gap:4px}
   .rcp-filter .chips{flex-wrap:wrap;overflow:visible;margin-inline:0;padding-inline:0;gap:6px}

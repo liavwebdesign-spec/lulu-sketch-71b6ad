@@ -42,7 +42,7 @@
     var id = location.hash.slice(1);
     var el = id && document.getElementById(id);
     if (!el) return;
-    var go = function () { var y = el.getBoundingClientRect().top + scrollY; if (window.lenis) window.lenis.scrollTo(y, { immediate: true, force: true }); else scrollTo(0, y); };
+    var go = function () { var y = el.getBoundingClientRect().top + scrollY - (parseFloat(getComputedStyle(el).scrollMarginTop) || 0); if (window.lenis) window.lenis.scrollTo(y, { immediate: true, force: true }); else scrollTo(0, y); };
     go(); setTimeout(go, 400); setTimeout(go, 1200);
   }
   addEventListener('load', function () { if (window.ScrollTrigger) ScrollTrigger.refresh(); deepLink(); });

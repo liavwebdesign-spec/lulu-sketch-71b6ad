@@ -42,7 +42,7 @@
     var id = location.hash.slice(1);
     var el = id && document.getElementById(id);
     if (!el) return;
-    var go = function () { var y = el.getBoundingClientRect().top + scrollY; if (window.lenis) window.lenis.scrollTo(y, { immediate: true, force: true }); else scrollTo(0, y); };
+    var go = function () { var y = el.getBoundingClientRect().top + scrollY - (parseFloat(getComputedStyle(el).scrollMarginTop) || 0); if (window.lenis) window.lenis.scrollTo(y, { immediate: true, force: true }); else scrollTo(0, y); };
     go(); setTimeout(go, 400); setTimeout(go, 1200);
   }
   addEventListener('load', function () { if (window.ScrollTrigger) ScrollTrigger.refresh(); deepLink(); });
@@ -387,8 +387,11 @@
     var fridge = $('[data-fridge]'), henBox = $('[data-pick-hen]'), q = $('#rcp-q');
     var leads = $$('.lead-rec'), count = $('[data-rcp-count]'), empty = $('[data-rcp-empty]');
     var params = new URLSearchParams(location.search);
-    var state = { cat: params.get('cat') || 'all', time: 'all', level: 'all' };
+    var state = { cat: params.get('cat') || 'all', time: 'all', level: 'all', product: '' };
     if (!$('.pick[data-v="' + state.cat + '"]', fridge)) state.cat = 'all';
+    // coming from the products page: only the recipes of that one product, until you choose anything else
+    var names = JSON.parse($('[data-list="rcp"]').dataset.names), clearBtn = $('[data-rcp-clear]');
+    if (names[params.get('product')] && items.some(function (li) { return li.dataset.product === params.get('product'); })) state.product = params.get('product');
     if (params.get('q')) q.value = params.get('q');
     var norm = function (s) { return s.toLowerCase().replace(/["'׳״]/g, '').trim(); };
     var timeOk = function (m) { return state.time === 'all' || (state.time === 'long' ? m > 60 : m <= +state.time); };
@@ -407,7 +410,7 @@
     }
     function apply() {
       var terms = norm(q.value).split(/\s+/).filter(Boolean);
-      var plain = !terms.length && state.time === 'all' && state.level === 'all';
+      var plain = !terms.length && state.time === 'all' && state.level === 'all' && !state.product;
       var lead = null;
       leads.forEach(function (a) {
         var on = plain && a.dataset.for.split(' ').indexOf(state.cat) > -1;
@@ -416,15 +419,17 @@
       });
       var n = 0;
       items.forEach(function (li) {
-        var ok = (state.cat === 'all' || li.dataset.cat === state.cat) && timeOk(+li.dataset.mins) && (state.level === 'all' || li.dataset.level === state.level) && terms.every(function (t) { return li.dataset.q.indexOf(t) > -1; });
+        var ok = (state.cat === 'all' || li.dataset.cat === state.cat) && (!state.product || li.dataset.product === state.product) && timeOk(+li.dataset.mins) && (state.level === 'all' || li.dataset.level === state.level) && terms.every(function (t) { return li.dataset.q.indexOf(t) > -1; });
         if (ok) n++;
         li.hidden = !ok || li.dataset.id === lead;
       });
-      count.textContent = n === 1 ? 'מתכון אחד' : n + ' מתכונים';
+      count.textContent = (n === 1 ? 'מתכון אחד' : n + ' מתכונים') + (state.product ? ' עם ' + names[state.product] : '');
       count.hidden = n === 0;
       empty.hidden = n !== 0;
+      clearBtn.hidden = !state.product;
       // the address keeps the choice, so going back from a recipe returns to the same shelf
       var url = new URLSearchParams();
+      if (state.product) url.set('product', state.product);
       if (state.cat !== 'all') url.set('cat', state.cat);
       if (q.value.trim()) url.set('q', q.value.trim());
       history.replaceState(null, '', location.pathname + (url.toString() ? '?' + url : ''));
@@ -435,6 +440,7 @@
       var b = e.target.closest('.pick');
       if (!b) return;
       state.cat = b.dataset.v;
+      state.product = '';
       pressed(fridge, state.cat);
       placeHen(true);
       centerPick();
@@ -450,8 +456,9 @@
       });
     });
     q.addEventListener('input', apply);
+    clearBtn.addEventListener('click', function () { state.product = ''; apply(); });
     $('[data-rcp-reset]').addEventListener('click', function () {
-      q.value = ''; state.time = 'all'; state.level = 'all'; state.cat = 'all';
+      q.value = ''; state.time = 'all'; state.level = 'all'; state.cat = 'all'; state.product = '';
       pressed(fridge, 'all');
       $$('[data-rcp]').forEach(function (box) { pressed(box, 'all'); });
       placeHen(true); centerPick(); apply(); q.focus();
@@ -480,5 +487,61 @@
     var title = shareBtn.dataset.share, url = location.href;
     if (navigator.share) { navigator.share({ title: title, url: url }).catch(function () {}); return; }
     window.open('https://wa.me/?text=' + encodeURIComponent(title + ' ' + url), '_blank', 'noopener');
+  });
+})();
+
+// The products page: choosing a shelf, and the hen that walks the edge of each one as it comes up. Without a script every shelf is simply there.
+(function () {
+  var $$ = function (s, r) { return [].slice.call((r || document).querySelectorAll(s)); };
+  var shelves = $$('[data-shelf]');
+  if (!shelves.length) return;
+  var root = document.documentElement;
+
+  var box = document.querySelector('[data-chips="shelves"]');
+  var count = document.querySelector('[data-prc-count]');
+  function show(v, keep) {
+    var n = 0;
+    shelves.forEach(function (s) {
+      s.hidden = !(v === 'all' || s.dataset.shelf === v);
+      if (!s.hidden) n += $$('.prc', s).length;
+      // a shelf that comes back has nothing left to wait for
+      if (!s.hidden) $$('.reveal', s).forEach(function (el) { el.classList.add('is-in'); });
+    });
+    $$('.chip', box).forEach(function (c) { c.setAttribute('aria-pressed', String(c.dataset.v === v)); });
+    count.textContent = n + ' מוצרים';
+    if (!keep) history.replaceState(null, '', location.pathname + (v === 'all' ? '' : '?cat=' + v));
+    if (window.ScrollTrigger) ScrollTrigger.refresh();
+    document.dispatchEvent(new Event('lulu:layout'));
+  }
+  box.addEventListener('click', function (e) {
+    var b = e.target.closest('.chip');
+    if (b) show(b.dataset.v);
+  });
+  var asked = new URLSearchParams(location.search).get('cat');
+  if (asked && shelves.some(function (s) { return s.dataset.shelf === asked; })) show(asked, true);
+
+  // the walk: she crosses the edge while it climbs the screen, and stops the moment you do
+  if (!root.classList.contains('gsap-live')) return;
+  $$('.shelf-walk').forEach(function (walk) {
+    var hen = walk.querySelector('.walk-hen');
+    var feet = $$('.walk-foot', walk);
+    var rest;
+    function draw(p) {
+      hen.style.translate = -p * (walk.clientWidth - hen.getBoundingClientRect().width) + 'px 0';
+      feet.forEach(function (f, i) { f.classList.toggle('is-on', (i + 0.5) / feet.length < p); });
+    }
+    ScrollTrigger.create({
+      trigger: walk.parentNode,
+      start: 'top 92%',
+      end: 'top 16%',
+      onUpdate: function (st) {
+        if (root.classList.contains('a11y-still')) return;
+        draw(st.progress);
+        hen.classList.add('walking');
+        clearTimeout(rest);
+        rest = setTimeout(function () { hen.classList.remove('walking'); }, 160);
+      },
+      onRefresh: function (st) { draw(st.progress); },
+    });
   });
 })();
